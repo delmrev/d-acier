@@ -1,0 +1,11 @@
+bin
+.vs
+.fake
+obj
+build
+*.idea
+Data
+*.user
+*.crt
+*.key
+*.pfx
