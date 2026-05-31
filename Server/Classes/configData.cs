@@ -6,4 +6,5 @@ public class ConfigData
     public ushort HTTPSPort {get; set;}
     public ushort TCPPort {get; set;}
     public bool EnableDebug {get; set;}
+    public string? CertName {get; set;}
 }

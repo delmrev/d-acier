@@ -6,7 +6,7 @@ public static class ConnectMessage
     {
         using MemoryStream m = new(IncomeData);
         using BinaryReader reader = new(m);
-        var data = Reader.ReadBytes(reader,"BBI");
+        var data = await Reader.ReadBytes(reader,"BBI");
         session.game_id = (int)data[2];
         reader.BaseStream.Position = 74;
         var steamID = Reader.Readint64Le(reader);
@@ -24,7 +24,7 @@ public static class ConnectMessage
             session.Name = u0.Name;
         }
         Log.Debug($"Packet: c ->");
-        var buffer = Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, EugenID, (long)0, 60, statusCode, (long)0);
+        var buffer = await Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, EugenID, (long)0, 60, statusCode, (long)0);
         Log.Debug($"Packet: c <-");
         if(statusCode == 0x0){
             Global.RegSession(session);

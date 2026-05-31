@@ -15,9 +15,9 @@ public class FPacket
         fOpcode = (FServerOpcode)reader.ReadByte();
         payload = reader.ReadBytes(PayloadLength-1);
     }
-    public List<byte> ToSend()
+    public async Task<List<byte>> ToSend()
     {
-        var buffer = Writer.WriteBytes("BIHB",
+        var buffer = await Writer.WriteBytes("BIHB",
         (byte)'f',
         channel,
         PayloadLength,

@@ -8,7 +8,7 @@ public static class LobbyPrivateMSG
         }
         for (int i = 0; i < session.currentRoom.Users.Count; i++)
         {
-            await ProxyReader.FinalizePacket(fPacket.ToSend(),session.currentRoom.Users[i]);
+            await ProxyReader.FinalizePacket(await fPacket.ToSend(),session.currentRoom.Users[i]);
         }
     }
 }

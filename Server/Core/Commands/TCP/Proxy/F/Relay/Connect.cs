@@ -17,7 +17,7 @@ public static class ConnectStartP2P
                     {
                         Log.Info($"Direct TCP connect {(long)read.output[0]} -> {user.EugenID}");
                         BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), session.EugenID);
-                        await ProxyReader.FinalizePacket(fPacket.ToSend(),user);
+                        await ProxyReader.FinalizePacket(await fPacket.ToSend(),user);
                     } else
                     {
                         Log.Error($"User dont found: {read.output[0]}");
@@ -50,7 +50,7 @@ public static class ConnectStartP2P
                         {
                             Log.Info($"STUN_INFO {(long)read.output[0]} -> {user.EugenID}");
                             BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), session.EugenID);
-                            await ProxyReader.FinalizePacket(fPacket.ToSend(),user);
+                            await ProxyReader.FinalizePacket(await fPacket.ToSend(),user);
                         } else
                         {
                             Log.Error($"User dont found: {read.output[0]}");
@@ -73,7 +73,7 @@ public static class ConnectStartP2P
                             {
                                 Log.Info($"Steam connect {(long)read.output[0]} -> {user.EugenID}");
                                 BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), session.EugenID);
-                                await ProxyReader.FinalizePacket(fPacket.ToSend(),user);
+                                await ProxyReader.FinalizePacket(await fPacket.ToSend(),user);
                             } else
                             {
                                 Log.Error($"User dont found: {read.output[0]}");

@@ -5,13 +5,13 @@ public static class GetPublicInformation
         object[] values;
         using MemoryStream ms = new(fPacket.payload);
         using BinaryReader reader = new(ms);
-        var read = Reader.ReadBytes(reader, "H");
+        var read = await Reader.ReadBytes(reader, "H");
         short searchid = (short)read[0];
         FResponse response;
         string page = "";
         for (int i = 0; i < 5; i++)
         {
-            values = Reader.ReadBytes(reader, "HLBHc");
+            values = await Reader.ReadBytes(reader, "HLBHc");
             switch (i)
             {
                 case 0:
@@ -33,34 +33,34 @@ public static class GetPublicInformation
         {
             if(int.Parse(page) == 1){ // i dont know
                 var list = Global.GetRoomList();
-                var buf = Writer.WriteBytes("H", list.Count);
+                var buf = await Writer.WriteBytes("H", list.Count);
                 response = new(fPacket.channel,FClientOpcode.Brausing,buf);
-                await ProxyReader.FinalizePacket(response.ToSend(),session);
+                await ProxyReader.FinalizePacket(await response.ToSend(),session);
                 foreach(var room in list)
                 {
                     List<byte> pack = [];
-                    buf = Writer.WriteBytes("HQH", searchid, room.Key, 2);
+                    buf = await Writer.WriteBytes("HQH", searchid, room.Key, 2);
                     pack.AddRange(buf);
                     int[] indexeses = [1, 0, 4, 3, 7, 8, 264, 256, 2, 265, 260, 259, 261, 258, 263, 268, 267, 262, 257];
                     for (int i = 0; i < indexeses.Length; i++)
                     {
-                        var option = Writer.WriteBytes("Ic",indexeses[i],room.Value.RoomSettings[indexeses[i]]);
-                        var length = Writer.WriteBytes("H",option.Count);
+                        var option = await Writer.WriteBytes("Ic",indexeses[i],room.Value.RoomSettings[indexeses[i]]);
+                        var length = await Writer.WriteBytes("H",option.Count);
                         pack.AddRange(length);
                         pack.AddRange(option);
                     }
                     response = new(fPacket.channel,FClientOpcode.Brausing,pack);
-                    await ProxyReader.FinalizePacket(response.ToSend(),session);
+                    await ProxyReader.FinalizePacket(await response.ToSend(),session);
                 }
             } else
             {
-                var buf = Writer.WriteBytes("H", 0);
+                var buf = await Writer.WriteBytes("H", 0);
                 response = new(fPacket.channel, FClientOpcode.Brausing, buf);
-                await ProxyReader.FinalizePacket(response.ToSend(), session); 
+                await ProxyReader.FinalizePacket(await response.ToSend(), session); 
             }
-            var buffer = Writer.WriteBytes("LLLLLLLLLLLLLL", Global.GetPlayersCount(), Global.GetRoomsCount(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            var buffer = await Writer.WriteBytes("LLLLLLLLLLLLLL", Global.GetPlayersCount(), Global.GetRoomsCount(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
             response = new(fPacket.channel, FClientOpcode.PublicInformation, buffer);
-            await ProxyReader.FinalizePacket(response.ToSend(), session); 
+            await ProxyReader.FinalizePacket(await response.ToSend(), session); 
         }
     }
 }

@@ -8,13 +8,13 @@ public static class CreateLobby
     {
         FResponse fResponse;
         List<byte> buffer;
-        var values = Reader.ReadBytes(fPacket.payload, "BBBBIIQ");
+        var values = await Reader.ReadBytes(fPacket.payload, "BBBBIIQ");
         byte header = Convert.ToByte(values[4]); //values[4] - lobby type
         long newid = ((long)header << 56) | (++TotalRooms & 0x00FFFFFFFFFFFFFFL);
         session.currentRoom = new Room(session,newid);
-        buffer = Writer.WriteBytes("BBHLLQ", 0x64, StatusCode.SUCCESS, 14754, -1 , values[5], session.currentRoom.ID); // 0x64 - d - CreateLobby; 
+        buffer = await Writer.WriteBytes("BBHLLQ", 0x64, StatusCode.SUCCESS, 14754, -1 , values[5], session.currentRoom.ID); // 0x64 - d - CreateLobby; 
         fResponse = new(fPacket.channel, FClientOpcode.SystemMessage, buffer);
-        await ProxyReader.FinalizePacket(fResponse.ToSend(), session);
+        await ProxyReader.FinalizePacket(await fResponse.ToSend(), session);
         var conf = Global.GetConfigData();
         if(conf is null || conf?.ip is null)
         {
@@ -23,15 +23,15 @@ public static class CreateLobby
         var ipStr = conf?.ip.Split('.');
         byte[] byteip = [byte.Parse(ipStr[0]), byte.Parse(ipStr[1]),byte.Parse(ipStr[2]),byte.Parse(ipStr[3])];
         Array.Reverse(byteip);
-        buffer = Writer.WriteBytes("BBHLLQs", 0x66, 0x00, 0, BitConverter.ToInt32(byteip),-1905684631, session.currentRoom.ID, "Relay.1");
+        buffer = await Writer.WriteBytes("BBHLLQs", 0x66, 0x00, 0, BitConverter.ToInt32(byteip),-1905684631, session.currentRoom.ID, "Relay.1");
         fResponse = new(fPacket.channel, FClientOpcode.SystemMessage_2, buffer);
-        await ProxyReader.FinalizePacket(fResponse.ToSend(), session);
-        buffer = Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.MESSAGE_HOST_CHANGED, StatusCode.SUCCESS, 14754, 2, -1, session.currentRoom.ID); // h - 0x68
+        await ProxyReader.FinalizePacket(await fResponse.ToSend(), session);
+        buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.MESSAGE_HOST_CHANGED, StatusCode.SUCCESS, 14754, 2, -1, session.currentRoom.ID); // h - 0x68
         fResponse = new(fPacket.channel, FClientOpcode.LobbyMessage, buffer);
-        await ProxyReader.FinalizePacket(fResponse.ToSend(), session);
-        buffer = Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.LOBBY_ENTER_FINISHED, StatusCode.SUCCESS, 14754, 2, -1, session.currentRoom.ID); // j - 0x6A
+        await ProxyReader.FinalizePacket(await fResponse.ToSend(), session);
+        buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.LOBBY_ENTER_FINISHED, StatusCode.SUCCESS, 14754, 2, -1, session.currentRoom.ID); // j - 0x6A
         fResponse = new(fPacket.channel, FClientOpcode.LobbyMessage, buffer);
-        await ProxyReader.FinalizePacket(fResponse.ToSend(), session);
+        await ProxyReader.FinalizePacket(await fResponse.ToSend(), session);
         Global.AddRoom(session.currentRoom);
         session.currentRoom.Users.Add(session);
     }

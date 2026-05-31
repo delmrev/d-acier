@@ -5,14 +5,14 @@ public class Reader
 {
     private static readonly Logger Log = LogManager.GetCurrentClassLogger();
 
-    public static object[] ReadBytes(byte[] packet, string command)
+    public static async Task<object[]> ReadBytes(byte[] packet, string command)
     {
         using MemoryStream m = new(packet);
         using BinaryReader reader = new(m);
-        return ReadBytes(reader, command);
+        return await ReadBytes(reader, command);
     }
 
-    public static object[] ReadBytes(BinaryReader reader, string command)
+    public static async Task<object[]> ReadBytes(BinaryReader reader, string command)
     {
         object[] objects = new object[command.Length];
 

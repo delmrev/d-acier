@@ -42,7 +42,7 @@ public class ProxyReader
                     );
                 break;
             case (byte)PacketType.CLOSE_CHANNEL: // g - Close connectiom, size, opcode, channel // I
-                var data = Reader.ReadBytes(packet,"BI");
+                var data = await Reader.ReadBytes(packet,"BI");
                 try
                 {
                     session.channels.Remove((int)data[1]);
@@ -66,8 +66,8 @@ public class ProxyReader
 
     public static async Task FinalizePacket(List<byte> buffer, Session session)
     {
-        var length = Writer.WriteBytes("H", buffer.Count).ToArray();
-        buffer.InsertRange(0, length);
+        var length = await Writer.WriteBytes("H", buffer.Count);
+        buffer.InsertRange(0, length.ToArray());
         await session.Server.SendPacket(session.Ssl, buffer.ToArray());
     }
 }

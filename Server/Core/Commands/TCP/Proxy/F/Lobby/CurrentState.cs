@@ -20,7 +20,7 @@ public static class CurrentState
             {
                 if (session.currentRoom.Users[i] != session)
                 {
-                    await ProxyReader.FinalizePacket(response.ToSend(),session.currentRoom.Users[i]);
+                    await ProxyReader.FinalizePacket(await response.ToSend(),session.currentRoom.Users[i]);
                 }
             }
         }

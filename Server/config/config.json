@@ -4,5 +4,6 @@
     "HTTPSPort": 443,
     "STUNPort": 3478,
     "TCPPort": 21001,
-    "EnableDebug" : false
+    "EnableDebug" : false,
+    "CertName" : "server.pfx"
 }

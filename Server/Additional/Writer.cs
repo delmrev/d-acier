@@ -7,7 +7,7 @@ public class Writer
 {
     private static readonly Logger Log = LogManager.GetCurrentClassLogger();
 
-    public static List<byte> WriteBytes(string command, params object[] value)
+    public static async Task<List<byte>> WriteBytes(string command, params object[] value)
     {
         List<byte> buffer = new();
         byte[] localBuffer;
@@ -87,8 +87,6 @@ public class Writer
                 Log.Error(ex, "Error writing command '{0}' at index {1}", command[i], i);
             }
         }
-
-        //Log.Trace("Serialized {0} bytes", buffer.Count);
         return buffer;
     }
 }

@@ -9,10 +9,10 @@ public class FriendCommand
                     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
         ];
         buffer.AddRange(packet);
-        buffer.AddRange(Writer.WriteBytes("Q", session.EugenID));
+        buffer.AddRange(await Writer.WriteBytes("Q", session.EugenID));
         packet = [0xFF, 0xFF, 0xFF, 0xFF];
         buffer.AddRange(packet);
         FResponse response = new(fPacket.channel, FClientOpcode.BM_TEAM_COMMAND, buffer);
-        await ProxyReader.FinalizePacket(response.ToSend(), session);
+        await ProxyReader.FinalizePacket(await response.ToSend(), session);
     }
 }

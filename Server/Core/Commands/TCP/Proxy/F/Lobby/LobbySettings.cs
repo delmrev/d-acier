@@ -11,7 +11,7 @@ public static class LobbySettings
             Log.Error("Try to get current room but dont have current room");
             return;
         }
-        values = Reader.ReadBytes(fPacket.payload, "QIBc");
+        values = await Reader.ReadBytes(fPacket.payload, "QIBc");
         if((byte)values[2] == 0x01) // if flag, dont save
         {
             Log.Debug($"Dont save; id: {values[1]}, value: {values[3]}");
@@ -27,11 +27,11 @@ public static class LobbySettings
             }
             session.currentRoom.RoomSettings[id] = value;
         }
-        var buf = Writer.WriteBytes("QIBc",session.currentRoom.ID,id,(byte)values[2],value);
+        var buf = await Writer.WriteBytes("QIBc",session.currentRoom.ID,id,(byte)values[2],value);
         FResponse response = new(fPacket.channel,FClientOpcode.LobbyInfo,buf);
         for (int i = 0; i < session.currentRoom.Users.Count; i++)
         {
-            await ProxyReader.FinalizePacket(response.ToSend(),session.currentRoom.Users[i]);
+            await ProxyReader.FinalizePacket(await response.ToSend(),session.currentRoom.Users[i]);
         }
     }
 }

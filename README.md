@@ -50,11 +50,9 @@ There's simple quick-start guide to run and play. Get the latest [release](https
 > [!IMPORTANT]
 > You need to open 8080, 443, 3478 and 21001 ports by default.
 
-1. Generate SSL certificate via `PfxGenerator.fsx` script in the Tools folder. Rename your certificate to server.pfx and put it into `cert` folder.
+1. Configure the server in `config/config.json` file (update IP to serve and ports)
 
-2. Configure the server in `config/config.json` file (update IP to serve and ports)
-
-3. Run the server with d-acier.exe
+2. Run the server with `d-acier.exe`
 
 ### Client
 
@@ -67,3 +65,8 @@ There's simple quick-start guide to run and play. Get the latest [release](https
 ## Special thanks
 
 - [STUN Server](https://github.com/seanmcelroy/stungun)
+
+## Legal Disclaimer
+This is not affiliated, associated, authorized, endorsed by, or in any way officially connected with Eugen Systems or any of their subsidiaries or affiliates.
+
+The names Steel Division 2 as well as related names, marks, emblems, and images are registered trademarks of their respective owners. This project is for educational and preservation purposes only.

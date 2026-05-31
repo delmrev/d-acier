@@ -77,7 +77,7 @@ public class DReader
 
     private static async Task BasicResponse(DPacket dPacket, Session session, int index)
     {
-        var buffer = Writer.WriteBytes("BII", (byte)'d', dPacket.channel, index);
+        var buffer = await Writer.WriteBytes("BII", (byte)'d', dPacket.channel, index);
         Log.Debug("Sending basic response for command {0}, ack {1}, index {2}: {3}",
             dPacket.command,
             dPacket.channel,

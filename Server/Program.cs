@@ -31,15 +31,17 @@ class Program
                 return;
             }
 
-            // Загружаем сертификат
-            if (!File.Exists("cert/serverSert.pfx"))
+            if (!Directory.Exists("cert"))
             {
-                Log.Error("Certificate file not found");
-                await DatabaseManager.Stop();
-                return;
+                Directory.CreateDirectory("cert");
+            }
+            if (!File.Exists($"cert/{Data.CertName}"))
+            {
+                Log.Warn("Certificate file not found");
+                CertGenerator.GenerateCert(Data.CertName ?? "server.pfx");
             }
 
-            var cert = new X509Certificate2("cert/serverSert.pfx");
+            var cert = new X509Certificate2($"cert/{Data.CertName}");
 
             Log.Info("Certificate loaded: {0}, expires {1}", cert.Subject, cert.GetExpirationDateString());
 

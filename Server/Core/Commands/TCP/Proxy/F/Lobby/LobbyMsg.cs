@@ -12,7 +12,7 @@ public static class LobbyMsg
             {
                 return;
             }
-            await ProxyReader.FinalizePacket(fPacket.ToSend(),session.currentRoom.Users[i]);
+            await ProxyReader.FinalizePacket(await fPacket.ToSend(),session.currentRoom.Users[i]);
         }
     }
 }

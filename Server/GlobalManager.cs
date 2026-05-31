@@ -127,7 +127,7 @@ public static class Global
             }
         }
     }
-    public static void SendMessage(FResponse responce, string chatKey, int gameid)
+    public static void SendMessage(FResponse response, string chatKey, int gameid)
     {
         lock (chatLocker)
         {
@@ -143,7 +143,7 @@ public static class Global
                 var chat = ChatList[chatKey];
                 for(int i = 0; i < chat.users.Count; i++)
                 {
-                    Task.Run(() => ProxyReader.FinalizePacket(responce.ToSend(),chat.users[i]));
+                    Task.Run(async () => ProxyReader.FinalizePacket(await response.ToSend(),chat.users[i]));
                 }
             }
         }
