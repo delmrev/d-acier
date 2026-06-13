@@ -71,6 +71,7 @@ public class DReader
     }
     private static int Get_Game_ID(int EugenAppID) => EugenAppID switch
     {
+        24 => 251060,
         27 => 919640,
         _ => -1
     };

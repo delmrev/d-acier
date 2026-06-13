@@ -1,5 +1,6 @@
 public enum PacketType : byte
 {
+    OLDCONNECT = 0x41,
     CONNECT = 0x42, // B
     CONNECT_SERVER = 0x63, //c
     CONFIRM = 0x64, // d

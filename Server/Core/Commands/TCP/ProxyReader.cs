@@ -23,6 +23,9 @@ public class ProxyReader
                     method.ToString("X2")
                 );
                 break;
+            case (byte)PacketType.OLDCONNECT:
+                await OldConnect.Process(packet, session);
+            break;
             case (byte)PacketType.CONFIRM: //d (0x64) - connection handler: Length, opcode (d), channel, s (length, command). Server response: length, channel, I command (affects response content)
                 await DReader.ProcessPacket(packet, session);
                 break;

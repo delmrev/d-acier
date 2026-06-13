@@ -11,6 +11,7 @@ Use those commands:
 ```bash
 # Generate build scripts with premake5
 $ premake5 vs2022
-# Build .dll
-$ msbuild ./eugnet-patch.sln
+# if you want to build x86 hook version replace x64 to Win32
+# Build binary
+$ msbuild ./eugnet-patch.sln /p:Platform=x64
 ```

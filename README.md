@@ -2,7 +2,7 @@
 
 This project is a dedicated server for Steel Division 2 that implements the Eugnet protocol. The goal is to allow multiplayer games without the official Eugen services, either on LAN or through a self-hosted community server.
 
-For now, it supports only SD2, but the protocol code should be similar for other games because they use the same engine.
+[You can see which games are supported](#supported-games)
 
 You can find more in our [Discord](https://discord.gg/UM4CjfqAC)
 
@@ -32,13 +32,14 @@ $ dotnet build
 $ dotnet run
 ```
 
-To build client patch, you need [premake5](https://premake.github.io/) and [Visual Studio 2022](https://learn.microsoft.com/ru-ru/visualstudio/releases/2022/release-history#release-dates-and-build-numbers) compiler.
+To build client patch, you need [premake5](https://premake.github.io/) and [Visual Studio 2022](https://learn.microsoft.com/en-us/visualstudio/releases/2022/release-history#release-dates-and-build-numbers) compiler.
 
 ```bash
 # Create building scripts
 $ premake5 vs2022
+# if you want to build x86 hook version replace x64 to Win32
 # Build binary
-$ msbuild ./eugnet-patch.sln
+$ msbuild ./eugnet-patch.sln /p:Platform=x64
 ```
 
 ## Usage
@@ -62,6 +63,21 @@ There's simple quick-start guide to run and play. Get the latest [release](https
 
 3. Run the game
 
+4. Register (write any data)
+
+> [!IMPORTANT]
+> Please use only the registration window; using other windows, such as the login window or the password recovery window, will result in errors.
+
+## Supported games
+
+| Name | Architecture | Supported |
+| :--- | :---: | :--- |
+| Steel Division 2 | x64 | Native |
+| Wargame | x86 | Yes |
+| Steel Division : Normandy 44 | x86 | No |
+
+Other games not included in this list have not been tested; they will most likely be added soon
+
 ## Special thanks
 
 - [STUN Server](https://github.com/seanmcelroy/stungun)
@@ -69,4 +85,4 @@ There's simple quick-start guide to run and play. Get the latest [release](https
 ## Legal Disclaimer
 This is not affiliated, associated, authorized, endorsed by, or in any way officially connected with Eugen Systems or any of their subsidiaries or affiliates.
 
-The names Steel Division 2 as well as related names, marks, emblems, and images are registered trademarks of their respective owners. This project is for educational and preservation purposes only.
+The names Steel Division 2, Steel Division:Normandy 44 or Wargame as well as related names, marks, emblems, and images are registered trademarks of their respective owners. This project is for educational and preservation purposes only.
