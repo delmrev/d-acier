@@ -16,11 +16,11 @@ public static class CreateLobby
         fResponse = new(fPacket.channel, FClientOpcode.SystemMessage, buffer);
         await ProxyReader.FinalizePacket(await fResponse.ToSend(), session);
         var conf = Global.GetConfigData();
-        if(conf is null || conf?.ip is null)
+        if(conf is null || conf?.Ip is null)
         {
             return;
         }
-        var ipStr = conf?.ip.Split('.');
+        var ipStr = conf?.Ip.Split('.');
         byte[] byteip = [byte.Parse(ipStr[0]), byte.Parse(ipStr[1]),byte.Parse(ipStr[2]),byte.Parse(ipStr[3])];
         Array.Reverse(byteip);
         buffer = await Writer.WriteBytes("BBHLLQs", 0x66, 0x00, 0, BitConverter.ToInt32(byteip),-1905684631, session.currentRoom.ID, "Relay.1");
@@ -32,7 +32,7 @@ public static class CreateLobby
         buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.LOBBY_ENTER_FINISHED, StatusCode.SUCCESS, 14754, 2, -1, session.currentRoom.ID); // j - 0x6A
         fResponse = new(fPacket.channel, FClientOpcode.LobbyMessage, buffer);
         await ProxyReader.FinalizePacket(await fResponse.ToSend(), session);
-        Global.AddRoom(session.currentRoom);
+        await Global.AddRoom(session.currentRoom, session.game_id);
         session.currentRoom.Users.Add(session);
     }
 }

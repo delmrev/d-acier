@@ -1,6 +1,6 @@
 public class ConfigData
 {
-    public string? ip { get; set; }
+    public string? Ip { get; set; }
     public ushort HTTPPort {get; set;}
     public ushort STUNPort {get; set;}
     public ushort HTTPSPort {get; set;}

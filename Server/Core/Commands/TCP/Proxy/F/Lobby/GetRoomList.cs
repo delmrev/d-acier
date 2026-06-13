@@ -6,7 +6,7 @@ public static class GetRoomList
         var buffer = await Writer.WriteBytes("H", 0);
         FResponse response = new(fPacket.channel, FClientOpcode.Brausing, buffer);
         await ProxyReader.FinalizePacket(await response.ToSend(), session); 
-        buffer = await Writer.WriteBytes("LLLLLLLLLLLLLL", Global.GetPlayersCount(), Global.GetRoomsCount(), 0, 340, 442, 4, 0, 1, 0, 0, 0, 0, 0, 0);
+        buffer = await Writer.WriteBytes("LLLLLLLLLLLLLL", await Global.GetPlayersCount(session.game_id), await Global.GetRoomsCount(session.game_id), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         response = new(fPacket.channel, FClientOpcode.PublicInformation, buffer);
         await ProxyReader.FinalizePacket(await response.ToSend(), session); 
         response = new(fPacket.channel, FClientOpcode.BrausingMessageEnd, [0x00, 0x01]);

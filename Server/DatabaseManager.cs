@@ -38,12 +38,15 @@ public static class DatabaseManager
         } else
         { 
             if(gameID == 0){
-                total.TotalAccounts++;
-                var user = new u0 {EugenID = total.TotalAccounts, SteamID = steamID, Avatar = $"VirtualData/SteamGamerPicture/{steamID}", Rev = "4-def22e51543f0d06ed42d91c7488d310"};
+                var user = new u0 {EugenID = total.TotalAccounts+1, SteamID = steamID, Avatar = $"VirtualData/SteamGamerPicture/{steamID}", Rev = "4-def22e51543f0d06ed42d91c7488d310"};
                 var userdata = await GetU0BySteamID(steamID);
                 if(userdata == null){
                     await _db.InsertAsync(user);
+                } else
+                {
+                    return userdata.EugenID;
                 }
+                total.TotalAccounts++;
                 await _db.UpdateAsync(total);
                 return user.EugenID;
             } else

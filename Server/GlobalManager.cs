@@ -1,151 +1,120 @@
-using Database.Tables;
+using System.Collections.Concurrent;
 using NLog;
 
 public static class Global
 {
     private static readonly Logger Log = LogManager.GetCurrentClassLogger();
-    private static Dictionary<long,Room> Rooms = new();
-    private static Dictionary<long,Session> Players = new();
-    private static object locker = new();
-    private static object chatLocker = new();
-    private static object roomLocker = new();
+    private static readonly ConcurrentDictionary<int, ConcurrentDictionary<long,Room>> Rooms = new();
+    private static readonly ConcurrentDictionary<int, ConcurrentDictionary<long,Session>> Players = new();
+    private static readonly Dictionary<int,List<Session>> automatch_list = new();
+    private static readonly ConcurrentDictionary<int, ConcurrentDictionary<string, Chat>> GameChatList = new();
     private static object configDataLocker = new();
-    private static object automatch = new();
-    private static readonly Dictionary<int, Dictionary<string, Chat>> GameChatList = new();
-    private static List<Session> automatch_list = new();
     private static ConfigData? Confdata;
-    public static void AddRoom(Room room)
+    public static async Task AddRoom(Room room, int gameid)
     {
-        lock (roomLocker)
-        {
-            Rooms.Add(room.ID,room);
-        }
+        Rooms.TryAdd(gameid, new());
+        Rooms[gameid].TryAdd(room.ID,room);
     }
-    public static void RemoveRoomFromList(Room room)
+    public static async Task RemoveRoomFromList(Room room, int gameid)
     {
-        lock (roomLocker)
-        {
-            Rooms.Remove(room.ID);
-        }
+        Rooms[gameid].TryRemove(room.ID, out _);
     }
-    public static void RegSession(Session session)
+    public static async Task RegSession(Session session, int gameid)
     {
-        lock (locker)
-        {
-            Players.Add(session.EugenID,session);
-        }
+        Players.TryAdd(gameid, new());
+        Players[gameid].TryAdd(session.EugenID,session);
     }
-    public static void LogOutSession(Session session)
+    public static async Task LogOutSession(Session session)
     {
-        lock (locker)
-        {
-            Players.Remove(session.EugenID);
-        }
+        Players[session.game_id].TryRemove(session.EugenID, out _);
     }
-    public static int GetPlayersCount()
+    public static async Task<int> GetPlayersCount(int gameid)
     {
-        lock (locker)
-        {
-            return Players.Count;
-        }
+        Players.TryAdd(gameid, new());
+        return Players[gameid].Count;
     }
-    public static int GetRoomsCount()
+    public static async Task<int> GetRoomsCount(int gameid)
     {
-        lock (roomLocker)
-        {
-            return Rooms.Count;
-        }
+        Rooms.TryAdd(gameid, new());
+        return Rooms[gameid].Count;
     }
-    public static Dictionary<long,Room> GetRoomList()
+    
+    public static async Task<ConcurrentDictionary<long,Room>> GetRoomList(int gameid)
     {
-        lock (roomLocker)
-        {
-            return Rooms;
-        }
+        Rooms.TryAdd(gameid, new());
+        return Rooms[gameid];
     }
-    public static Session? GetSession(long EugenID)
+    public static async Task<Session?> GetSession(long EugenID, int gameid)
     {
-        lock (locker)
-        {
-            return Players[EugenID];
-        }
+        return Players[gameid][EugenID];
     }
-    public static Room GetRoom(long roomID)
+    public static async Task<Room> GetRoom(long roomID, int gameid)
     {
-        lock (roomLocker)
-        {
-            return Rooms[roomID];
-        }
+        return Rooms[gameid][roomID];
     }
-    public static void RemoveRoom(long roomID)
+    public static async Task RemoveRoom(long roomID, int gameid)
     {
-        Rooms.Remove(roomID);
+        Rooms[gameid].TryRemove(roomID, out _);
     }
-    public static Dictionary<string, Chat> GetChats(int gameid)
+    public static async Task<ConcurrentDictionary<string, Chat>> GetChats(int gameid)
     {
-        if (!GameChatList.ContainsKey(gameid))
-        {
-            GameChatList.Add(gameid,new());
-        }
+        GameChatList.TryAdd(gameid,new());
         return GameChatList[gameid];
     }
-    public static void JoinChat(string chatKey,int gameid, Session session)
+    public static async Task JoinChat(string chatKey,int gameid, Session session)
     {
-        lock (chatLocker)
+        GameChatList.TryAdd(gameid,new());
+        var ChatList = GameChatList[gameid];
+        if (!ChatList.TryGetValue(chatKey, out Chat? chat))
         {
-            if (!GameChatList.ContainsKey(gameid))
+            Chat newChat = new();
+            newChat.users.Add(session);
+            ChatList.TryAdd(chatKey,newChat);
+        } else {
+            chat.users.Add(session);
+        }
+    }
+    public static async Task LeftChat(string chatKey, Session session)
+    {
+        GameChatList.TryAdd(session.game_id,new());
+        var ChatList = GameChatList[session.game_id];
+        if (!ChatList.TryGetValue(chatKey, out Chat? chat))
+        {
+            Log.Error($"Try to disconect non-existent chat: {chatKey}");
+        } else {
+            chat.users.Remove(session);
+        }
+    }
+    public static async Task SendMessage(FResponse response, string chatKey, int gameid)
+    {
+        GameChatList.TryAdd(gameid,new());
+        var ChatList = GameChatList[gameid];
+        if (!ChatList.TryGetValue(chatKey, out Chat? chat))
+        {
+            Log.Error($"Try to send message in non-existent chat: {chatKey}");
+        } else {
+            for (int i = 0; i < chat.users.Count; i++)
             {
-                GameChatList.Add(gameid,new());
-            }
-            var ChatList = GameChatList[gameid];
-            if (!ChatList.ContainsKey(chatKey))
-            {
-                Chat newChat = new();
-                newChat.users.Add(session);
-                ChatList.Add(chatKey,newChat);
-            } else {
-                var chat = ChatList[chatKey];
-                chat.users.Add(session);
+                await ProxyReader.FinalizePacket(await response.ToSend(),chat.users[i]);
             }
         }
     }
-    public static void LeftChat(string chatKey, Session session, int gameid)
+    public static async Task Add_Chat(string chatKey, int gameid)
     {
-        lock (chatLocker)
-        {
-            if (!GameChatList.ContainsKey(gameid))
-            {
-                GameChatList.Add(gameid,new());
-            }
-            var ChatList = GameChatList[gameid];
-            if (!ChatList.ContainsKey(chatKey))
-            {
-                Log.Error($"Try to disconect non-existent chat: {chatKey}");
-            } else {
-                var chat = ChatList[chatKey];
-                chat.users.Remove(session);
-            }
-        }
+        GameChatList.TryAdd(gameid,new());
+        GameChatList[gameid].TryAdd(chatKey,new());
     }
-    public static void SendMessage(FResponse response, string chatKey, int gameid)
+    public static async Task<Chat> GetChat(string chatKey, int gameid)
     {
-        lock (chatLocker)
+        GameChatList.TryAdd(gameid,new());
+        var ChatList = GameChatList[gameid];
+        if (!ChatList.TryGetValue(chatKey, out Chat? chat))
         {
-            if (!GameChatList.ContainsKey(gameid))
-            {
-                GameChatList.Add(gameid,new());
-            }
-            var ChatList = GameChatList[gameid];
-            if (!ChatList.ContainsKey(chatKey))
-            {
-                Log.Error($"Try to send message in non-existent chat: {chatKey}");
-            } else {
-                var chat = ChatList[chatKey];
-                for(int i = 0; i < chat.users.Count; i++)
-                {
-                    Task.Run(async () => ProxyReader.FinalizePacket(await response.ToSend(),chat.users[i]));
-                }
-            }
+            Chat newChat = new();
+            ChatList.TryAdd(chatKey,newChat);
+            return newChat;
+        } else {
+            return chat;
         }
     }
     public static void SetConfigData(ConfigData data)
@@ -162,70 +131,33 @@ public static class Global
            return Confdata;
         }
     }
-    public static void Add_Chat(string chatKey, int gameid)
-    {
-        lock (chatLocker)
-        {
-            if (!GameChatList.ContainsKey(gameid))
-            {
-                GameChatList.Add(gameid,new());
-            }
-            if (GameChatList[gameid].ContainsKey(chatKey))
-            {
-                return;
-            } else
-            {
-                GameChatList[gameid].Add(chatKey,new());
-            }
-        }
-    }
-    public static Chat GetChat(string chatKey, int gameid)
-    {
-        lock (chatLocker)
-        {
-            if (!GameChatList.ContainsKey(gameid))
-            {
-                GameChatList.Add(gameid,new());
-            }
-            var ChatList = GameChatList[gameid];
-            if (!ChatList.ContainsKey(chatKey))
-            {
-                Chat newChat = new();
-                ChatList.Add(chatKey,newChat);
-                return newChat;
-            } else {
-                var chat = ChatList[chatKey];
-                return chat;
-            }
-        }
-    }
     public static async Task Stop()
     {
-        lock (locker){
-            for(int i = 0; i < Players.Count; i++)
+        foreach(var maps in Players){
+            for(int i = 0; i < maps.Value.Count; i++)
             {
-                for(int j = 0; j< Players[i].channels.Count; j++)
-                {
-                    var budder = Writer.WriteBytes("BI", PacketType.CLOSE_CHANNEL, Players[i].channels[i]);
+                foreach(var list in maps.Value){
+                    for(int j = 0; j< list.Value.channels.Count; j++)
+                    {
+                        var budder = Writer.WriteBytes("BI", PacketType.CLOSE_CHANNEL, list.Value.channels[i]);
+                    }
+                    list.Value.Dispose();
                 }
-                Players[i].Dispose();
             }
             Log.Info("Server stopped. All users disconnected");
         }
     }
-    public static async Task AddToAutoMatch(Session session) {
-        lock (automatch) 
-        {
-            automatch_list.Add(session);
-        }
+    public static async Task AddToAutoMatch(Session session) { // this section can be changed in future (when i add work automatch)
+        automatch_list.TryAdd(session.game_id,new());
+        automatch_list[session.game_id].Add(session);
     }
 
     public static async Task RemoveFromAutomatch(Session session)
     {
-        lock (automatch)
-        {
-            automatch_list.Remove(session);
-        }
+        automatch_list[session.game_id].Remove(session);
     }
-    public static async Task<Session[]> GetList() => [.. automatch_list];
+    public static async Task<List<Session>> GetList(int gameid){
+        automatch_list.TryAdd(gameid,new());
+        return automatch_list[gameid];
+    }
 }

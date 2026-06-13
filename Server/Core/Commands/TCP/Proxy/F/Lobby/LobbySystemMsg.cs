@@ -12,7 +12,7 @@ public static class LobbySystemMsg
             case 0x45:
                 await JoinLobby.Process(fPacket,session);
             break;
-            case 0x46: // Disconnect (Dedicated)
+            case 0x46:
                 buffer = await Writer.WriteBytes("BBHLLQ",LobbyCommandsClient.DISCONNECT,StatusCode.SUCCESS,339,session.unk_1,session.unk_2,(long)data[5]);
                 FResponse fResponse = new(fPacket.channel,FClientOpcode.LobbyMessage, buffer);
                 await ProxyReader.FinalizePacket(await fResponse.ToSend(),session);

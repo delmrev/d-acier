@@ -3,14 +3,14 @@ public class JoinChat
     public static async Task Process(FPacket fPacket, Session session)
     {
         var data = await Reader.ReadBytes(fPacket.payload, "IS"); // gameid, chatKey
-        var chat = Global.GetChat((string)data[1], (int)data[0]);
+        var chat = await Global.GetChat((string)data[1], (int)data[0]);
         var buffer = await Writer.WriteBytes("Is", chat.users.Count, (string)data[1]);
         FResponse response = new(fPacket.channel, FClientOpcode.BM_CHAT_ROOM_INFO, buffer);
         await ProxyReader.FinalizePacket(await response.ToSend(), session);
         buffer = await Writer.WriteBytes("Qs", session.EugenID, (string)data[1]);
         response = new(fPacket.channel, FClientOpcode.BM_CHAT_JOIN, buffer);
         await ProxyReader.FinalizePacket(await response.ToSend(), session);
-        Global.JoinChat((string)data[1],(int)data[0],session);
+        await Global.JoinChat((string)data[1],(int)data[0],session);
         session.currentChat = chat;
     }
 }

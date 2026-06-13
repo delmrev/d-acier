@@ -27,7 +27,7 @@ public static class LobbyInfoMsg
                     session.currentRoom = null;
                 } else
                 {
-                    Global.RemoveRoom(session.currentRoom.ID);
+                    await Global.RemoveRoom(session.currentRoom.ID, session.game_id);
                     session.currentRoom = null;
                 }
             break;

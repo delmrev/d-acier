@@ -63,7 +63,7 @@ public class FReader
                 break;
                 case FServerOpcode.BM_FRIEND_MESSAGE:
                     Log.Info("Processing BM_FRIEND_MESSAGE");
-                    await PrivateMessage.Process(fPacket);
+                    await PrivateMessage.Process(fPacket,session);
                     break;
                 case FServerOpcode.GET_PUBLIC_INFORMATION:
                     Log.Info("Processing GET_PUBLIC_INFORMATION");

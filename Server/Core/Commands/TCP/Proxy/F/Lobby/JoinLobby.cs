@@ -6,7 +6,7 @@ public class JoinLobby()
         FResponse response;
         List<byte> buffer;
         long roomID = (long)data[5];
-        Room room = Global.GetRoom(roomID);
+        Room room = await Global.GetRoom(roomID,session.game_id);
         room.Users.Add(session);
         session.currentRoom = room;
         foreach (var option in room.RoomSettings)
@@ -25,11 +25,11 @@ public class JoinLobby()
         response = new(fPacket.channel, FClientOpcode.SystemMessage, buffer);
         await ProxyReader.FinalizePacket(await response.ToSend(),session);
         var conf = Global.GetConfigData();
-        if(conf is null || conf?.ip is null)
+        if(conf is null || conf?.Ip is null)
         {
             return;
         }
-        var ipStr = conf?.ip.Split('.');
+        var ipStr = conf?.Ip.Split('.');
         byte[] byteip = [byte.Parse(ipStr[0]), byte.Parse(ipStr[1]),byte.Parse(ipStr[2]),byte.Parse(ipStr[3])];
         Array.Reverse(byteip);
         buffer = await Writer.WriteBytes("BBHLLQs", 0x66, 0x00, 0, BitConverter.ToInt32(byteip),-1905684631, room.ID, "Relay.1");

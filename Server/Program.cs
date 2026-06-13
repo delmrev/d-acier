@@ -24,7 +24,7 @@ class Program
                 consoleRule?.SetLoggingLevels(LogLevel.Info, LogLevel.Fatal);
                 LogManager.ReconfigExistingLoggers();
             }
-            if(Data.ip is null || Data.ip == "")
+            if(Data.Ip is null || Data.Ip == "")
             {
                 Log.Fatal("Incorrect IP!\n Stopping servers...");
                 await DatabaseManager.Stop();
@@ -47,13 +47,13 @@ class Program
             Log.Info("Certificate loaded: {0}, expires {1}", cert.Subject, cert.GetExpirationDateString());
 
             // TCP server
-            var tcpServer = new TCPServer(Data.ip, Data.TCPPort, cert);
+            var tcpServer = new TCPServer(Data.Ip, Data.TCPPort, cert);
 
             // HTTP server
-            var httpServer = new HttpServer(Data.ip, Data.HTTPPort);
+            var httpServer = new HttpServer(Data.Ip, Data.HTTPPort);
 
             // HTTPS server
-            var httpsServer = new HttpsServer(Data.ip, Data.HTTPSPort, cert);
+            var httpsServer = new HttpsServer(Data.Ip, Data.HTTPSPort, cert);
 
             // STUN server task
             var stunTask = Task.Run(async () =>

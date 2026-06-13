@@ -17,9 +17,6 @@ public static class GetPublicInformation
                 case 0:
                 page = (string)values[4];
                 break;
-                case 1:
-                    session.SpecialRoomID = (string)values[4];
-                    break;
                 default:
                     break;
             }
@@ -32,7 +29,7 @@ public static class GetPublicInformation
         } else
         {
             if(int.Parse(page) == 1){ // i dont know
-                var list = Global.GetRoomList();
+                var list = await Global.GetRoomList(session.game_id);
                 var buf = await Writer.WriteBytes("H", list.Count);
                 response = new(fPacket.channel,FClientOpcode.Brausing,buf);
                 await ProxyReader.FinalizePacket(await response.ToSend(),session);
@@ -58,7 +55,7 @@ public static class GetPublicInformation
                 response = new(fPacket.channel, FClientOpcode.Brausing, buf);
                 await ProxyReader.FinalizePacket(await response.ToSend(), session); 
             }
-            var buffer = await Writer.WriteBytes("LLLLLLLLLLLLLL", Global.GetPlayersCount(), Global.GetRoomsCount(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            var buffer = await Writer.WriteBytes("LLLLLLLLLLLLLL", await Global.GetPlayersCount(session.game_id), await Global.GetRoomsCount(session.game_id), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
             response = new(fPacket.channel, FClientOpcode.PublicInformation, buffer);
             await ProxyReader.FinalizePacket(await response.ToSend(), session); 
         }
