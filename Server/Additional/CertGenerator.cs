@@ -19,10 +19,8 @@ public class CertGenerator
             sanBuilder.AddDnsName("tm.eugnet.com");
             request.CertificateExtensions.Add(sanBuilder.Build());
 
-            // 1. Метод CreateSelfSigned возвращает сертификат, в который УЖЕ вшит приватный ключ 'rsa'
-            using (X509Certificate2 cert = request.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddYears(99)))
+            using (X509Certificate2 cert = request.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddYears(10)))
             {
-                // 2. Экспортируем напрямую из cert (без всяких CopyWithPrivateKey)
                 byte[] pfxBytes = cert.Export(X509ContentType.Pfx, "");
 
                 File.WriteAllBytes(Path.Combine(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "cert"), name), pfxBytes);

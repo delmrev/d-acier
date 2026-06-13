@@ -21,6 +21,11 @@ public static class HTTPSInputReader
                     case "/api/v1/LinkExternalApiAuth":
                         await LinkExternalApiAuth.Process(request, response);
                     break;
+                    default:
+                        response.StatusCode = 404;
+                        response.StatusString = "Not found";
+                        Log.Warn($"Not found the method: {request.RequestURL}");
+                    break;
                 }
             }
             

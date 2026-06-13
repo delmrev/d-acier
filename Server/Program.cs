@@ -30,18 +30,19 @@ class Program
                 await DatabaseManager.Stop();
                 return;
             }
-
-            if (!Directory.Exists("cert"))
+            string certFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "cert");
+            string certPath = Path.Combine(certFolder, Data.CertName ?? "server.pfx");
+            if (!Directory.Exists(certFolder))
             {
-                Directory.CreateDirectory("cert");
+                Directory.CreateDirectory(certFolder);
             }
-            if (!File.Exists($"cert/{Data.CertName}"))
+            if (!File.Exists(certPath))
             {
                 Log.Warn("Certificate file not found");
                 CertGenerator.GenerateCert(Data.CertName ?? "server.pfx");
             }
 
-            var cert = new X509Certificate2($"cert/{Data.CertName}");
+            var cert = new X509Certificate2(certPath);
 
             Log.Info("Certificate loaded: {0}, expires {1}", cert.Subject, cert.GetExpirationDateString());
 
@@ -85,11 +86,11 @@ class Program
             Log.Info("All servers started. Press Ctrl+C to stop.");
            
             // Graceful shutdown
-            Console.CancelKeyPress += (sender, e) =>
+            Console.CancelKeyPress += async (sender, e) =>
             {
                 e.Cancel = true;
                 Log.Info("Stopping servers...");
-                Global.Stop().Wait();
+                await Global.Stop();
                 httpServer.Dispose();
                 tcpServer.Dispose();
                 httpsServer.Dispose();
