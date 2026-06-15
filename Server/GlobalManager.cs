@@ -46,7 +46,8 @@ public static class Global
     }
     public static async Task<Session?> GetSession(long EugenID, int gameid)
     {
-        return Players[gameid][EugenID];
+        Players.TryAdd(gameid, new());
+        return Players[gameid].GetValueOrDefault(EugenID);
     }
     public static async Task<Room> GetRoom(long roomID, int gameid)
     {
