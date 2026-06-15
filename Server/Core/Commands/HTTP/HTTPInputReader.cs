@@ -42,7 +42,7 @@ public static class HTTPInputReader
                         ConfigureConfirmJSONResponse(ref response);
                     break;
                     default:
-                        Log.Warn("Unknown POST event type: {0}", eventType);
+                        Log.Info($"Unknown POST event type: {eventType}, writing default response");
                         ConfigureConfirmJSONResponse(ref response);
                         break;
                 }
@@ -53,35 +53,14 @@ public static class HTTPInputReader
                 {
                     response.StatusCode = 403;
                     response.StatusString = "Bad request";
+                    return;
                 }
-
                 Log.Debug($"HTTP GET request : {request.RequestURL}");
-
-                string gameID = "";
-                string id = "";
-                bool getId = false;
-                for (int i = 1; i < request.RequestURL?.Length; i++)
-                {
-                    if ((request.RequestURL[i] == '_' ||request.RequestURL[i] == '/') && !getId)
-                    {
-                        getId = true;
-                    }
-                    else if (getId)
-                    {
-                        id += request.RequestURL[i];
-                    }
-                    else
-                    {
-                        gameID += request.RequestURL[i];
-                    }
-                }
-
-                Log.Info($"GET gameID: {gameID}, id: {id}");
-
-                switch (gameID)
+                var arguments = request.RequestURL.Split(['_','\\','/'],StringSplitOptions.RemoveEmptyEntries);
+                switch (arguments[0])
                 {
                     case "u0":
-                    var tmp = U0.ProcessGETU0(id).Result;
+                    var tmp = U0.ProcessGETU0(arguments[1]).Result;
                     if(tmp == "Unauthorized"){
                         response.StatusCode = 401;
                         response.StatusString = tmp;
@@ -91,17 +70,16 @@ public static class HTTPInputReader
                             response.Body = tmp;
                         }
                     break;
-                    case "u27":
-                        var newGameID = int.Parse(gameID[1..]);
-                        long ID = long.Parse(id);
-                        var data = DatabaseManager.GetData(ID,newGameID).Result;
-                        if(data is null)
+                    case string s when s.StartsWith("u") && s.Length > 1 && int.TryParse(s[1..], out int game_id):
+                        long EugenID = long.Parse(arguments[1]);
+                        var data = DatabaseManager.GetData(EugenID,game_id).Result;
+                        if(data.Count == 0)
                         {
                            response.StatusCode = 404;
                            response.StatusString = "Object Not Found";
                         } else {
                             ConfigureConfirmJSONResponse(ref response);
-                            response.Body = Ustat.ProcessGETU27(newGameID,ID).Result;
+                            response.Body = Ustat.ProcessGETUStat(EugenID,game_id).Result;
                         }
                     break;
                     case "motd":
@@ -111,7 +89,7 @@ public static class HTTPInputReader
                         response.Body =  Motd.ProcessMotd();
                     break;
                     default:
-                        Log.Warn($"Unknown GET key: {gameID}");
+                        Log.Warn($"Unknown GET key: {arguments[0]}");
                         response.StatusCode = 404;
                         response.StatusString = "Not found";
                         break;

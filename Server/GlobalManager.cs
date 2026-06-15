@@ -4,18 +4,18 @@ using NLog;
 public static class Global
 {
     private static readonly Logger Log = LogManager.GetCurrentClassLogger();
-    private static readonly ConcurrentDictionary<int, ConcurrentDictionary<long,Room>> Rooms = new();
+    private static readonly ConcurrentDictionary<int, ConcurrentDictionary<long,Lobby>> Rooms = new();
     private static readonly ConcurrentDictionary<int, ConcurrentDictionary<long,Session>> Players = new();
     private static readonly Dictionary<int,List<Session>> automatch_list = new();
     private static readonly ConcurrentDictionary<int, ConcurrentDictionary<string, Chat>> GameChatList = new();
     private static object configDataLocker = new();
     private static ConfigData? Confdata;
-    public static async Task AddRoom(Room room, int gameid)
+    public static async Task AddRoom(Lobby room, int gameid)
     {
         Rooms.TryAdd(gameid, new());
         Rooms[gameid].TryAdd(room.ID,room);
     }
-    public static async Task RemoveRoomFromList(Room room, int gameid)
+    public static async Task RemoveRoomFromList(Lobby room, int gameid)
     {
         Rooms[gameid].TryRemove(room.ID, out _);
     }
@@ -39,7 +39,7 @@ public static class Global
         return Rooms[gameid].Count;
     }
     
-    public static async Task<ConcurrentDictionary<long,Room>> GetRoomList(int gameid)
+    public static async Task<ConcurrentDictionary<long,Lobby>> GetRoomList(int gameid)
     {
         Rooms.TryAdd(gameid, new());
         return Rooms[gameid];
@@ -49,7 +49,7 @@ public static class Global
         Players.TryAdd(gameid, new());
         return Players[gameid].GetValueOrDefault(EugenID);
     }
-    public static async Task<Room> GetRoom(long roomID, int gameid)
+    public static async Task<Lobby> GetRoom(long roomID, int gameid)
     {
         return Rooms[gameid][roomID];
     }

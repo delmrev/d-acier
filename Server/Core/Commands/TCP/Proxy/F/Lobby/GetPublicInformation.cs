@@ -35,16 +35,28 @@ public static class GetPublicInformation
                 await ProxyReader.FinalizePacket(await response.ToSend(),session);
                 foreach(var room in list)
                 {
+                    if (!room.Value.is_visible)
+                    {
+                        continue;
+                    }
                     List<byte> pack = [];
                     buf = await Writer.WriteBytes("HQH", searchid, room.Key, 2);
                     pack.AddRange(buf);
                     int[] indexeses = [1, 0, 4, 3, 7, 8, 264, 256, 2, 265, 260, 259, 261, 258, 263, 268, 267, 262, 257];
                     for (int i = 0; i < indexeses.Length; i++)
                     {
-                        var option = await Writer.WriteBytes("Ic",indexeses[i],room.Value.RoomSettings[indexeses[i]]);
-                        var length = await Writer.WriteBytes("H",option.Count);
-                        pack.AddRange(length);
-                        pack.AddRange(option);
+
+                        try
+                        {
+                            var option = await Writer.WriteBytes("Ic",indexeses[i],room.Value.RoomSettings[indexeses[i]]);
+                            var length = await Writer.WriteBytes("H",option.Count);
+                            pack.AddRange(length);
+                            pack.AddRange(option);
+                        }
+                        catch
+                        {
+                            return;
+                        }
                     }
                     response = new(fPacket.channel,FClientOpcode.Brausing,pack);
                     await ProxyReader.FinalizePacket(await response.ToSend(),session);

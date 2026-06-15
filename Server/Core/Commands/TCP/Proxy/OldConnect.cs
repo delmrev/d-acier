@@ -17,7 +17,7 @@ public static class OldConnect
         if (user is not null)
         {
             Log.Debug($"1Packet: c ->");
-            if(user.Password == null)
+            if(string.IsNullOrEmpty(user.Password))
             {
                 user.Password = (string)data[4];
                 DatabaseManager.UpdateData(user);
@@ -28,7 +28,8 @@ public static class OldConnect
                 await ProxyReader.FinalizePacket(buf,session);
                 return;
             }
-            if(await DatabaseManager.GetData(user.EugenID,gameid) == null)
+            var stat = await DatabaseManager.GetData(user.EugenID,gameid);
+            if(stat.Count == 0)
             {
                 await DatabaseManager.CreateAccount(steamID,gameid);
             }

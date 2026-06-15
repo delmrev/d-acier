@@ -16,7 +16,7 @@ public static class DatabaseManager
         _db = new("Data/database.sqlite3", false);
         await _db.CreateTableAsync<TotalRegisetered>();
         await _db.CreateTableAsync<u0>();
-        await _db.CreateTableAsync<Stat>();
+        await _db.CreateTableAsync<UserStat>();
     }
     public static async Task<long> CreateAccount(long steamID, int gameID)
     {
@@ -31,9 +31,15 @@ public static class DatabaseManager
                 return user.EugenID;
             } else
             {
-                var user = new Stat {GameID = gameID, EugenID = 1};
-                await _db.InsertAsync(user);
-                return user.EugenID;
+                UserStat stat = new()
+                {
+                    EugenID = 1,
+                    GameID = gameID,
+                    Key = "@level",
+                    Value = 1
+                };
+                await _db.InsertAsync(stat);
+                return 1;
             }
         } else
         { 
@@ -52,9 +58,15 @@ public static class DatabaseManager
             } else
             {
                 var data = await _db.Table<u0>().FirstAsync(t => t.SteamID == steamID);
-                var user = new Stat {GameID = gameID, EugenID = data.EugenID};
-                await _db.InsertAsync(user);
-                return user.EugenID;
+                UserStat stat = new()
+                {
+                    EugenID = data.EugenID,
+                    GameID = gameID,
+                    Key = "@level",
+                    Value = 1
+                };
+                await _db.InsertAsync(stat);
+                return stat.EugenID;
             }
         }
     }
@@ -83,16 +95,37 @@ public static class DatabaseManager
     {
         _db.UpdateAsync(data);
     }
-    public static async Task<Stat> GetData(long EugenID, int GameID)
+    public static async Task<Dictionary<string,int>> GetData(long EugenID, int GameID)
     {
-        var result = await _db.Table<Stat>().FirstOrDefaultAsync(t => t.EugenID == EugenID && t.GameID == GameID);
+        var result = await _db.Table<UserStat>()
+        .Where(t => t.EugenID == EugenID && t.GameID == GameID)
+        .ToListAsync();
+        Dictionary<string,int> stats = new();
+        for (int i = 0; i < result.Count; i++)
+        {
+            stats.Add(result[i].Key,result[i].Value);
+        }
+        return stats;
+    }
+    public static async Task ChangeOrAddStat(long EugenID, int gameID, string Key, int value)
+    {
+        var result = await _db.Table<UserStat>().FirstOrDefaultAsync(t => t.EugenID == EugenID && t.GameID == gameID && t.Key == Key);
         if(result is null)
         {
-            var user = await _db.Table<u0>().FirstAsync(t => t.EugenID == EugenID);
-            await CreateAccount(user.SteamID, GameID);
-            result = await _db.Table<Stat>().FirstAsync(t => t.EugenID == EugenID && t.GameID == GameID);
+            UserStat stat = new()
+            {
+                EugenID = EugenID,
+                GameID = gameID,
+                Key = Key,
+                Value = value
+            };
+            await _db.InsertAsync(stat);
+        } else
+        {
+            result.Value = value;
+            await _db.UpdateAsync(result);
         }
-        return result;
+        
     }
     public static async Task Stop()
     {

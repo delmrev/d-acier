@@ -11,7 +11,7 @@ public static class CreateLobby
         var values = await Reader.ReadBytes(fPacket.payload, "BBBBIIQ");
         byte header = Convert.ToByte(values[4]); //values[4] - lobby type
         long newid = ((long)header << 56) | (++TotalRooms & 0x00FFFFFFFFFFFFFFL);
-        session.currentRoom = new Room(session,newid);
+        session.currentRoom = new Lobby(session,newid);
         buffer = await Writer.WriteBytes("BBHLLQ", 0x64, StatusCode.SUCCESS, 14754, -1 , values[5], session.currentRoom.ID); // 0x64 - d - CreateLobby; 
         fResponse = new(fPacket.channel, FClientOpcode.SystemMessage, buffer);
         await ProxyReader.FinalizePacket(await fResponse.ToSend(), session);

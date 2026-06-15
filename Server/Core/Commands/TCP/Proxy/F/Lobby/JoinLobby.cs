@@ -6,7 +6,7 @@ public class JoinLobby()
         FResponse response;
         List<byte> buffer;
         long roomID = (long)data[5];
-        Room room = await Global.GetRoom(roomID,session.game_id);
+        Lobby room = await Global.GetRoom(roomID,session.game_id);
         room.Users.Add(session);
         session.currentRoom = room;
         foreach (var option in room.RoomSettings)

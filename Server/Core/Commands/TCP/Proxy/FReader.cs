@@ -99,7 +99,9 @@ public class FReader
                 case FServerOpcode.PING_2:
                     Log.Debug("Processing PING_2 (ignored)");
                     break;
-
+                case FServerOpcode.LOBBY_MSG:
+                    await LobbyInfoMsg.Process(fPacket,session);
+                break;
                 default:
                     Log.Warn("Unknown FPacket opcode {0}, Payload: {1}",
                         fPacket.fOpcode,

@@ -12,48 +12,46 @@ public class UpdateStats
         using BinaryReader reader = new(stream);
         var buffer = await Reader.ReadBytes(reader, "BII");
         var stats = await DatabaseManager.GetData(session.EugenID, session.game_id);
-        Type type = typeof(Stat);
         for (int i = 0; i < (int)buffer[1]; i++)
         {
             var tmp = await Reader.ReadBytes(reader, "SS");
             if (tmp[0] != null && tmp[0] is string str)
             {
-                str = str.Replace("@", "");
-                var value = type.GetProperty(str);
-                if (value is null)
+                if (str == "_rev" || str == "@name" || str == "@avatar")
                 {
-                    if (str == "_rev" || str == "name" || str == "avatar")
-                    {
-                        await UpdateU0(reader,session,fPacket);
-                        return;
-                    }
-                    else
-                    {
-                        Log.Error($"Dont exist value: {str}");
-                        continue;
-                    }
+                    await UpdateU0(reader,session,fPacket);
+                    return;
                 }
-                value.SetValue(stats, int.Parse((string)tmp[1]));
+                var value = int.Parse((string)tmp[1]);
+                if(stats.Count == 0)
+                {
+                    stats.Add(str, value);
+                    await DatabaseManager.ChangeOrAddStat(session.EugenID,session.game_id,str,value);
+                    continue;
+                }
+                if (!stats.TryAdd(str, value))
+                {
+                    stats[str] = value;
+                }
+                await DatabaseManager.ChangeOrAddStat(session.EugenID,session.game_id,str,value);
             }
             else
             {
                 Log.Error("Empty string!");
             }
         }
-        DatabaseManager.UpdateData(stats);
         byte[] bytes = new byte[32]; // Well, well, Eugens thanks for #v
-        var fields = type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(f => f.PropertyType == typeof(int) && f.Name != "GameID");
-        var buf = await Writer.WriteBytes("QQsQQLL", session.EugenID, -1, "", -1, -1, session.game_id, fields.Count());
-        foreach (var field in fields)
+        var buf = await Writer.WriteBytes("QQsQQLL", session.EugenID, -1, "", -1, -1, session.game_id, stats.Count);
+        foreach (var stat in stats)
         {
-            var strbytes = Encoding.UTF8.GetBytes($"@{field.Name}");
+            var strbytes = Encoding.UTF8.GetBytes(stat.Key);
             for (int j = 0; j < strbytes.Length; j++)
             {
                 bytes[j] = strbytes[j];
             }
             buf.AddRange(bytes);
             Array.Clear(bytes, 0, bytes.Length);
-            buf.AddRange(await Writer.WriteBytes("S", $"{field.GetValue(stats)}"));
+            buf.AddRange(await Writer.WriteBytes("S", $"{stat.Value}"));
         }
         FResponse responce = new(fPacket.channel, FClientOpcode.StatsResult, await Writer.WriteBytes("aa", true, false));
         await ProxyReader.FinalizePacket(await responce.ToSend(), session);

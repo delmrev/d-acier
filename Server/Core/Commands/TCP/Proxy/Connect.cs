@@ -8,8 +8,9 @@ public static class ConnectMessage
         using BinaryReader reader = new(m);
         var data = await Reader.ReadBytes(reader,"BBI");
         session.game_id = (int)data[2];
-        reader.BaseStream.Position = 74;
-        var steamID = Reader.Readint64Le(reader);
+        long steamID = 0;
+        await Reader.ReadBytes(reader,"IIII");
+        steamID = Reader.Readint64Le(reader);
         var u0 = await DatabaseManager.GetU0BySteamID(steamID);
         var config = Global.GetConfigData();
         byte statusCode = (byte)StatusCode.SUCCESS;

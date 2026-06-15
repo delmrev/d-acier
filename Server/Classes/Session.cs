@@ -8,7 +8,7 @@ public class Session(Socket socket, SslStream ssl, TCPServer server) : IDisposab
     public TCPServer Server {get; } = server;
     public string? Name;
     public long EugenID;
-    public Room? currentRoom;
+    public Lobby? currentRoom;
     public bool has_EF = false;
     public List<int> channels = new();
     public Chat? currentChat;
