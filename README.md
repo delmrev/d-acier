@@ -74,6 +74,7 @@ There's simple quick-start guide to run and play. Get the latest [release](https
 | :--- | :---: | :--- |
 | Steel Division 2 | x64 | Native |
 | Wargame | x86 | Yes |
+| Warno | x64 | Yes |
 | Steel Division : Normandy 44 | x64 | No |
 
 Other games not included in this list have not been tested; they will most likely be added soon
@@ -86,4 +87,4 @@ Other games not included in this list have not been tested; they will most likel
 
 This is not affiliated, associated, authorized, endorsed by, or in any way officially connected with Eugen Systems or any of their subsidiaries or affiliates.
 
-The names Steel Division 2, Steel Division:Normandy 44 or Wargame as well as related names, marks, emblems, and images are registered trademarks of their respective owners. This project is for educational and preservation purposes only.
+The names Steel Division 2, Steel Division:Normandy 44, Wargame or Warno as well as related names, marks, emblems, and images are registered trademarks of their respective owners. This project is for educational and preservation purposes only.

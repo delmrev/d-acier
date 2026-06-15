@@ -71,8 +71,9 @@ public class DReader
     }
     private static int Get_Game_ID(int EugenAppID) => EugenAppID switch
     {
-        24 => 251060,
-        27 => 919640,
+        24 => 251060, // Wargame
+        27 => 919640, // SD2
+        29 => 1611600, // WARNO
         _ => -1
     };
 
