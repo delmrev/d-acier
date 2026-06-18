@@ -20,54 +20,39 @@ public static class DatabaseManager
     }
     public static async Task<long> CreateAccount(long steamID, int gameID)
     {
-        var total = await _db.Table<TotalRegisetered>().FirstOrDefaultAsync(t => t.ID == 1);
-        if(total is null)
+        if (gameID == 0)
         {
-            var TotalAccounts = new TotalRegisetered{ID = 1, TotalAccounts = 1};
-            await _db.InsertAsync(TotalAccounts);
-            if(gameID == 0){
-                var user = new u0 {EugenID = 1, SteamID = steamID, Avatar = $"VirtualData/SteamGamerPicture/{steamID}", Rev = "4-def22e51543f0d06ed42d91c7488d310"};
-                await _db.InsertAsync(user);
-                return user.EugenID;
-            } else
+            var userdata = await GetU0BySteamID(steamID);
+            if (userdata != null)
             {
-                UserStat stat = new()
-                {
-                    EugenID = 1,
-                    GameID = gameID,
-                    Key = "@level",
-                    Value = 1
-                };
-                await _db.InsertAsync(stat);
-                return 1;
+                return userdata.EugenID;
             }
-        } else
-        { 
-            if(gameID == 0){
-                var user = new u0 {EugenID = total.TotalAccounts+1, SteamID = steamID, Avatar = $"VirtualData/SteamGamerPicture/{steamID}", Rev = "4-def22e51543f0d06ed42d91c7488d310"};
-                var userdata = await GetU0BySteamID(steamID);
-                if(userdata == null){
-                    await _db.InsertAsync(user);
-                } else
+            var user = new u0 
+            { 
+                SteamID = steamID, 
+                Avatar = $"VirtualData/SteamGamerPicture/{steamID}", 
+                Rev = "4-def22e51543f0d06ed42d91c7488d310"
+            };
+            await _db.InsertAsync(user); 
+            return user.EugenID;
+        }
+        else
+        {
+            var data = await _db.Table<u0>().FirstOrDefaultAsync(t => t.SteamID == steamID);
+            if (data == null)
                 {
-                    return userdata.EugenID;
+                    return -1;
                 }
-                total.TotalAccounts++;
-                await _db.UpdateAsync(total);
-                return user.EugenID;
-            } else
+
+            UserStat stat = new()
             {
-                var data = await _db.Table<u0>().FirstAsync(t => t.SteamID == steamID);
-                UserStat stat = new()
-                {
-                    EugenID = data.EugenID,
-                    GameID = gameID,
-                    Key = "@level",
-                    Value = 1
-                };
-                await _db.InsertAsync(stat);
-                return stat.EugenID;
-            }
+                EugenID = data.EugenID,
+                GameID = gameID,
+                Key = "@level",
+                Value = 1
+            };
+            await _db.InsertAsync(stat);
+            return stat.EugenID;
         }
     }
     public static async Task<u0?> GetU0(long EugenID)

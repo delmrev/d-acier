@@ -5,7 +5,7 @@ namespace Database.Tables
     [Table("u0")]
     public class u0
     {
-        [PrimaryKey]
+        [PrimaryKey,AutoIncrement]
         [Column("EugenID")]
         public int EugenID {get; set;}
         [Indexed]
