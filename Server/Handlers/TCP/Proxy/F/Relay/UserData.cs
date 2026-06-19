@@ -13,7 +13,7 @@ public static class UserData
             if(user != null)
             {
                 Log.Info($"Data user {session.EugenID} -> {user.EugenID}");
-                BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), user.EugenID);
+                BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), session.EugenID);
                 await ProxyReader.FinalizePacket(await fPacket.ToSend(),user);
             } else
             {
