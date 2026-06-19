@@ -1,9 +1,0 @@
-{
-    "Ip": "127.0.0.1",
-    "HTTPPort": 8080,
-    "HTTPSPort": 443,
-    "STUNPort": 3478,
-    "TCPPort": 21001,
-    "EnableDebug" : false,
-    "CertName" : "server.pfx"
-}

@@ -12,7 +12,7 @@ public static class OldConnect
         var data = await Reader.ReadBytes(reader,"BIISSBS");
         long steamID = long.Parse((string)data[6]);
         var user = await DatabaseManager.GetU0BySteamID(steamID);
-        byte statusCode = (byte)StatusCode.SUCCESS;
+        byte statusCode = (byte)StatusCode.Success;
         int gameid = (int)data[2];
         if (user is not null)
         {
@@ -23,7 +23,7 @@ public static class OldConnect
                 DatabaseManager.UpdateData(user);
             } else if(user.Password != (string)data[4])
             {
-                statusCode = (byte)StatusCode.INCORRECTIDENTIFICATION;
+                statusCode = (byte)StatusCode.IncorrectIdentification;
                 var buf = await Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, -1, (long)0, 60, statusCode, (long)0);
                 await ProxyReader.FinalizePacket(buf,session);
                 return;
