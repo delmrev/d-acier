@@ -22,9 +22,6 @@
     <None Update="NLog.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="config\Server.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Update="Configuration\Server.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
