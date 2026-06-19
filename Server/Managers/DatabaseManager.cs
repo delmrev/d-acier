@@ -14,7 +14,6 @@ public static class DatabaseManager
             Log.Info("Dont exist data directory. Created");
         }
         _db = new("Data/database.sqlite3", false);
-        await _db.CreateTableAsync<TotalRegisetered>();
         await _db.CreateTableAsync<u0>();
         await _db.CreateTableAsync<UserStat>();
     }

@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Text;
 using NLog;
 
@@ -44,7 +42,7 @@ public class Writer
                         break;
 
                     case 'H':
-                        localBuffer = BitConverter.GetBytes(Convert.ToInt16(value[i]));
+                        localBuffer = BitConverter.GetBytes(Convert.ToUInt16(value[i]));
                         Array.Reverse(localBuffer);
                         buffer.AddRange(localBuffer);
                         break;

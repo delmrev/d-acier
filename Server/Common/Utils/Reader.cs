@@ -49,7 +49,7 @@ public class Reader
                         break;
 
                     case 'c':
-                        short length = ReadInt16Be(reader);
+                        ushort length = ReadInt16Be(reader);
                         byte[] stringBytes = reader.ReadBytes(length);
                         objects[i] = Encoding.UTF8.GetString(stringBytes);
                         break;
@@ -110,7 +110,7 @@ public class Reader
                         break;
 
                     case 'c':
-                        short length = ReadInt16Be(reader);
+                        ushort length = ReadInt16Be(reader);
                         byte[] stringBytes = reader.ReadBytes(length);
                         objects[i] = Encoding.UTF8.GetString(stringBytes);
                         break;
@@ -157,7 +157,7 @@ public class Reader
         return BitConverter.ToInt64(buffer, 0);
     }
 
-    public static short ReadInt16Be(BinaryReader reader)
+    public static ushort ReadInt16Be(BinaryReader reader)
     {
         byte[] buffer = reader.ReadBytes(2);
         if (buffer.Length < 2)
@@ -165,7 +165,7 @@ public class Reader
             Log.Debug("Not enough bytes to read Int16");
             return 0;
         }
-        return (short)((buffer[0] << 8) | buffer[1]);
+        return (ushort)((buffer[0] << 8) | buffer[1]);
     }
     public static short ReadInt16Le(BinaryReader reader)
     {

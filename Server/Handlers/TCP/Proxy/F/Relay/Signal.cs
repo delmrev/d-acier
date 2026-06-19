@@ -9,9 +9,9 @@ public static class Signal
         var values = await Reader.ReadBytes(fPacket.payload,"B");
         if((byte)values[0] == 0x00)
         {
-            for (int i = 0; i < session.currentRoom.Users.Count; i++)
+            foreach(var user in session.currentRoom.Users)
             {
-                await ProxyReader.FinalizePacket(await fPacket.ToSend(),session.currentRoom.Users[i]);
+                await ProxyReader.FinalizePacket(await fPacket.ToSend(),user.Value);
             }
         }
     }

@@ -3,15 +3,15 @@ using NLog;
 public static class CreateLobby
 {
     private static long TotalRooms = 0;
-    private static readonly Logger Log = LogManager.GetCurrentClassLogger();
     public static async Task Process(FPacket fPacket, Session session)
     {
         FResponse fResponse;
         List<byte> buffer;
         var values = await Reader.ReadBytes(fPacket.payload, "BBBBIIQ");
-        byte header = Convert.ToByte(values[4]); //values[4] - lobby type
+        byte header = Convert.ToByte(2); //values[4] - lobby size
         long newid = ((long)header << 56) | (++TotalRooms & 0x00FFFFFFFFFFFFFFL);
         session.currentRoom = new Lobby(session,newid);
+        session.roomKeyID = 2;
         buffer = await Writer.WriteBytes("BBHLLQ", 0x64, StatusCode.Success, 14754, -1 , values[5], session.currentRoom.ID); // 0x64 - d - CreateLobby; 
         fResponse = new(fPacket.channel, FClientOpcode.SystemMessage, buffer);
         await ProxyReader.FinalizePacket(await fResponse.ToSend(), session);
@@ -33,6 +33,6 @@ public static class CreateLobby
         fResponse = new(fPacket.channel, FClientOpcode.LobbyMessage, buffer);
         await ProxyReader.FinalizePacket(await fResponse.ToSend(), session);
         await Global.AddRoom(session.currentRoom, session.game_id);
-        session.currentRoom.Users.Add(session);
+        session.currentRoom.Users.Add(2,session);
     }
 }

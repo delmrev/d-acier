@@ -9,7 +9,10 @@ public static class UserData
         var data = await Reader.ReadBytes(fPacket.payload,"Q");
         if(session.currentRoom != null)
         {
-            var user = session.currentRoom.Users.FirstOrDefault(r => (long)data[0] == r.EugenID);
+            var user = session.currentRoom.Users
+                .Where(r => (long)data[0] == r.Value.EugenID)
+                .Select(r => r.Value)
+                .FirstOrDefault();
             if(user != null)
             {
                 Log.Info($"Data user {session.EugenID} -> {user.EugenID}");

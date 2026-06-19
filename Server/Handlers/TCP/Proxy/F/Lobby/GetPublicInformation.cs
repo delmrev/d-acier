@@ -6,7 +6,7 @@ public static class GetPublicInformation
         using MemoryStream ms = new(fPacket.payload);
         using BinaryReader reader = new(ms);
         var read = await Reader.ReadBytes(reader, "H");
-        short searchid = (short)read[0];
+        ushort searchid = (ushort)read[0];
         FResponse response;
         string page = "";
         for (int i = 0; i < 5; i++)
@@ -35,10 +35,6 @@ public static class GetPublicInformation
                 await ProxyReader.FinalizePacket(await response.ToSend(),session);
                 foreach(var room in list)
                 {
-                    if (!room.Value.is_visible)
-                    {
-                        continue;
-                    }
                     List<byte> pack = [];
                     buf = await Writer.WriteBytes("HQH", searchid, room.Key, 2);
                     pack.AddRange(buf);
@@ -55,7 +51,7 @@ public static class GetPublicInformation
                         }
                         catch
                         {
-                            return;
+                            continue;
                         }
                     }
                     response = new(fPacket.channel,FClientOpcode.Brausing,pack);

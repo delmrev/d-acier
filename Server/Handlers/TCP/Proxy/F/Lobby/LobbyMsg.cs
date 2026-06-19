@@ -6,13 +6,9 @@ public static class LobbyMsg
         {
             return;
         }
-        for (int i = 0; i < session.currentRoom.Users.Count; i++)
+        foreach(var user in session.currentRoom.Users)
         {
-            if(session.currentRoom?.Users[i] is null)
-            {
-                return;
-            }
-            await ProxyReader.FinalizePacket(await fPacket.ToSend(),session.currentRoom.Users[i]);
+            await ProxyReader.FinalizePacket(await fPacket.ToSend(),user.Value);
         }
     }
 }

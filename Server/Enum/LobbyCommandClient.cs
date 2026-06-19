@@ -5,6 +5,6 @@ public enum LobbyCommandsClient : byte
     Disconnect = 0x6C, // l
     UnknownDisconnect = 0x6B, // k 
     Kick = 0x67,  // g
-    Unknown2Disconnect = 0x6F, // o
+    Kick_2= 0x6F, // o
     Connect = 0x63 // c
 }

@@ -2,7 +2,7 @@ public class FPacket
 {
     public byte Opcode;
     public int channel;
-    public short PayloadLength;
+    public ushort PayloadLength;
     public FServerOpcode fOpcode;
     public byte[] payload;
     public FPacket(byte[] bytes)

@@ -9,11 +9,10 @@ public static class LobbyPrivateMSG
         {
             return;
         }
-        for (int i = 0; i < session.currentRoom.Users.Count; i++)
+        foreach(var user in session.currentRoom.Users)
         {
-            session.currentRoom.is_visible = false;
             Log.Debug("Change visibility");
-            await ProxyReader.FinalizePacket(await fPacket.ToSend(),session.currentRoom.Users[i]);
+            await ProxyReader.FinalizePacket(await fPacket.ToSend(),user.Value);
         }
     }
 }

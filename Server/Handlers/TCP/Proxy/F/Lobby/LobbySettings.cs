@@ -29,9 +29,9 @@ public static class LobbySettings
         }
         var buf = await Writer.WriteBytes("QIBc",session.currentRoom.ID,id,(byte)values[2],value);
         FResponse response = new(fPacket.channel,FClientOpcode.LobbyInfo,buf);
-        for (int i = 0; i < session.currentRoom.Users.Count; i++)
+        foreach(var user in session.currentRoom.Users)
         {
-            await ProxyReader.FinalizePacket(await response.ToSend(),session.currentRoom.Users[i]);
+            await ProxyReader.FinalizePacket(await response.ToSend(),user.Value);
         }
     }
 }

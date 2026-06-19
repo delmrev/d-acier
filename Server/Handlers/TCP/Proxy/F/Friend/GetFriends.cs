@@ -8,7 +8,7 @@ public class GetFriends
         var settings = await Reader.ReadBytes(reader,"H");
         int count = 0;
         List<byte> buffer = new();
-        for (int i = 0; i < (short)settings[0]; i++)
+        for (int i = 0; i < (ushort)settings[0]; i++)
         {
             var buf = await Reader.ReadBytes(reader, "BS");
             var user = await DatabaseManager.GetU0BySteamID(long.Parse((string)buf[1]));

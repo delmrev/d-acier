@@ -11,21 +11,22 @@ public static class ConnectStartP2P
         {
             if(session.currentRoom != null)
             {
-                if(session.currentRoom.Host==session){
-                    var user = session.currentRoom.Users.FirstOrDefault(r => (long)read.output[0] == r.EugenID);
-                    if(user != null)
-                    {
-                        Log.Info($"Direct TCP connect {(long)read.output[0]} -> {user.EugenID}");
-                        BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), session.EugenID);
-                        await ProxyReader.FinalizePacket(await fPacket.ToSend(),user);
-                    } else
-                    {
-                        Log.Error($"User dont found: {read.output[0]}");
-                    }
+                var user = session.currentRoom.Users
+                .Where(r => (long)read.output[0] == r.Value.EugenID)
+                .Select(r => r.Value)
+                .FirstOrDefault();
+                if(user != null)
+                {
+                    Log.Info($"Direct TCP connect {session.EugenID} -> {user.EugenID}");
+                    BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), session.EugenID);
+                    await ProxyReader.FinalizePacket(await fPacket.ToSend(),user);
                 } else
                 {
-                    Log.Error("Try to send message to user but lobby is null");
+                    Log.Error($"User dont found: {read.output[0]}");
                 }
+            }  else
+            {
+                Log.Error("Try to send message to user but lobby is null");
             }
         } else
         {
@@ -45,10 +46,13 @@ public static class ConnectStartP2P
                 {
                     if(session.currentRoom != null)
                     {
-                        var user = session.currentRoom.Users.FirstOrDefault(r => (long)read.output[0] == r.EugenID);
+                        var user = session.currentRoom.Users
+                            .Where(r => (long)read.output[0] == r.Value.EugenID)
+                            .Select(r => r.Value)
+                            .FirstOrDefault();
                         if(user != null)
                         {
-                            Log.Info($"STUN_INFO {(long)read.output[0]} -> {user.EugenID}");
+                            Log.Info($"STUN_INFO {session.EugenID} -> {user.EugenID}");
                             BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), session.EugenID);
                             await ProxyReader.FinalizePacket(await fPacket.ToSend(),user);
                         } else
@@ -67,21 +71,22 @@ public static class ConnectStartP2P
                 {
                     if(session.currentRoom != null)
                     {
-                        if(session.currentRoom.Host==session){
-                            var user = session.currentRoom.Users.FirstOrDefault(r => (long)read.output[0] == r.EugenID);
-                            if(user != null)
-                            {
-                                Log.Info($"Steam connect {(long)read.output[0]} -> {user.EugenID}");
-                                BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), session.EugenID);
-                                await ProxyReader.FinalizePacket(await fPacket.ToSend(),user);
-                            } else
-                            {
-                                Log.Error($"User dont found: {read.output[0]}");
-                            }
+                        var user = session.currentRoom.Users
+                        .Where(r => (long)read.output[0] == r.Value.EugenID)
+                        .Select(r => r.Value)
+                        .FirstOrDefault();
+                        if(user != null)
+                        {
+                            Log.Info($"Steam connect {session.EugenID} -> {user.EugenID}");
+                            BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), session.EugenID);
+                            await ProxyReader.FinalizePacket(await fPacket.ToSend(),user);
                         } else
                         {
-                            Log.Error("Try to send message to user but lobby is null");
+                            Log.Error($"User dont found: {read.output[0]}");
                         }
+                    } else
+                    {
+                        Log.Error("Try to send message to user but lobby is null");
                     }
                 }
             }

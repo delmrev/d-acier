@@ -81,6 +81,7 @@ public class TCPServer : IDisposable
         using (var network = new NetworkStream(client, ownsSocket: false))
         using (var ssl = new SslStream(network, leaveInnerStreamOpen: false))
         {
+            Session? session = null;
             try
             {
                 var options = new SslServerAuthenticationOptions
@@ -92,12 +93,12 @@ public class TCPServer : IDisposable
                 };
                 await ssl.AuthenticateAsServerAsync(options, token);
 
-                var session = new Session(client, ssl, this);
+                session = new Session(client, ssl, this);
 
                 byte[] buffer = new byte[4096];
                 int read;
 
-                while ((read = await ssl.ReadAsync(buffer, 0, buffer.Length, token)) > 0 && !cts.IsCancellationRequested)
+                while (ssl.CanRead && (read = await ssl.ReadAsync(buffer, 0, buffer.Length, token)) > 0 && !cts.IsCancellationRequested)
                 {
                     await ProcessIncoming(buffer.AsSpan(0, read).ToArray(), session);
                 }
@@ -110,8 +111,10 @@ public class TCPServer : IDisposable
             }
             finally
             {
-                client.Close();
-                client.Dispose();
+                session?.Dispose();
+                ssl?.Dispose();
+                client?.Close();
+                client?.Dispose();
             }
         }
     }
@@ -125,7 +128,7 @@ public class TCPServer : IDisposable
 
             while (reader.BaseStream.Position < reader.BaseStream.Length)
             {
-                int length = Reader.ReadInt16Be(reader);
+                ushort length = Reader.ReadInt16Be(reader);
                 var body = reader.ReadBytes(length);
                 Log.Debug("Incoming packet ({0} bytes):\n{1}", length, HexDump.Dump(body));
                 await ProxyReader.ProcessPacket(body, session);
@@ -134,6 +137,10 @@ public class TCPServer : IDisposable
         catch (Exception ex)
         {
             Log.Error(ex, "Error processing incoming packet");
+            if (session!=null && (session.Socket == null || session.Ssl == null || !session.Ssl.CanRead || !session.Socket.Connected))
+            {
+                session?.Dispose();
+            }
         }
     }
 

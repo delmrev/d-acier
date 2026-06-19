@@ -7,7 +7,24 @@ public class JoinLobby()
         List<byte> buffer;
         long roomID = (long)data[5];
         Lobby room = await Global.GetRoom(roomID,session.game_id);
-        room.Users.Add(session);
+        int place = -1;
+        for (int i = 2; i <= int.Parse(room.RoomSettings[2])*2; i+=2)
+        {
+            if (!room.Users.ContainsKey(i))
+            {
+                place = i;
+                break;
+            }
+        }
+        if(place == -1)
+        {
+            buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.DisconnectFromMms, StatusCode.PendingClientListFull, 0, -1, 0, room.ID);
+            response = new(fPacket.channel, FClientOpcode.SystemMessage, buffer);
+            await ProxyReader.FinalizePacket(await response.ToSend(),session);
+            return;
+        }
+        session.roomKeyID = place;
+        room.Users.Add(place,session);
         session.currentRoom = room;
         foreach (var option in room.RoomSettings)
         {
@@ -15,13 +32,13 @@ public class JoinLobby()
             response = new(fPacket.channel,FClientOpcode.LobbyInfo,buf);
             await ProxyReader.FinalizePacket(await response.ToSend(),session);
         }
-        buffer = await Writer.WriteBytes("BBHQLQ", LobbyCommandsClient.Connect, 0x00, 1, room.ID, 2, room.Host.EugenID);
+        buffer = await Writer.WriteBytes("BBHQLQ", LobbyCommandsClient.Connect, StatusCode.Success, 1, room.ID, room.Host.roomKeyID, room.Host.EugenID);
         response = new(fPacket.channel, FClientOpcode.LobbyMessage, buffer);
         await ProxyReader.FinalizePacket(await response.ToSend(),session);
-        buffer = await Writer.WriteBytes("BBHQLQ", LobbyCommandsClient.Connect, 0x00, 0, room.ID, 6, session.EugenID);
+        buffer = await Writer.WriteBytes("BBHQLQ", LobbyCommandsClient.Connect, StatusCode.Success, 0, room.ID, session.roomKeyID, session.EugenID);
         response = new(fPacket.channel, FClientOpcode.LobbyMessage, buffer);
         await ProxyReader.FinalizePacket(await response.ToSend(),room.Host);
-        buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.OnLobbyEntered, 0x00, 0, -1, 0, room.ID);
+        buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.OnLobbyEntered, StatusCode.Success, 0, -1, 0, room.ID);
         response = new(fPacket.channel, FClientOpcode.SystemMessage, buffer);
         await ProxyReader.FinalizePacket(await response.ToSend(),session);
         var conf = Global.GetConfigData();
@@ -32,16 +49,16 @@ public class JoinLobby()
         var ipStr = conf.Server.Address.Split('.');
         byte[] byteip = [byte.Parse(ipStr[0]), byte.Parse(ipStr[1]),byte.Parse(ipStr[2]),byte.Parse(ipStr[3])];
         Array.Reverse(byteip);
-        buffer = await Writer.WriteBytes("BBHLLQs", 0x66, 0x00, 0, BitConverter.ToInt32(byteip),-1905684631, room.ID, "Relay.1");
+        buffer = await Writer.WriteBytes("BBHLLQs", 0x66, StatusCode.Success, 0, BitConverter.ToInt32(byteip),-1905684631, room.ID, "Relay.1");
         response = new(fPacket.channel, FClientOpcode.SystemMessage_2, buffer);
         await ProxyReader.FinalizePacket(await response.ToSend(), session);
-        buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.MessageHostChanged, 0x00, 14754, 2, -1, room.ID); // h - 0x68
+        buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.MessageHostChanged, StatusCode.Success, 14754, room.Host.roomKeyID, -1, room.ID); // h - 0x68
         response = new(fPacket.channel, FClientOpcode.LobbyMessage, buffer);
         await ProxyReader.FinalizePacket(await response.ToSend(), session);
-        buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.LobbyEnterFinished,  0x00, 14754, 6, -1, room.ID); // j - 0x6A
+        buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.LobbyEnterFinished,  StatusCode.Success, 14754, session.roomKeyID, -1, room.ID); // j - 0x6A
         response = new(fPacket.channel, FClientOpcode.LobbyMessage, buffer);
         await ProxyReader.FinalizePacket(await response.ToSend(), session);
-        buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.JoinLobbyFinished, 0x00, 0, 6, 1, room.ID); 
+        buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.JoinLobbyFinished, StatusCode.Success, 0, session.roomKeyID, 1, room.ID); 
         response = new(fPacket.channel, FClientOpcode.SystemMessage, buffer);
         await ProxyReader.FinalizePacket(await response.ToSend(),room.Host);
     }

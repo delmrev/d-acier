@@ -9,6 +9,7 @@ public class Session(Socket socket, SslStream ssl, TCPServer server) : IDisposab
     public string? Name;
     public long EugenID;
     public Lobby? currentRoom;
+    public int roomKeyID = -1;
     public bool has_EF = false;
     public List<int> channels = new();
     public Chat? currentChat;
@@ -19,7 +20,8 @@ public class Session(Socket socket, SslStream ssl, TCPServer server) : IDisposab
     {
         currentChat?.users.Remove(this);
         currentChat = null;
-        currentRoom?.Users.Remove(this);
+        currentRoom?.Users.Remove(roomKeyID);
+        Task.Run(async() => LeaveLobby.Process(this));
         currentRoom = null;
         channels.Clear();
         Task.Run(async() => Global.LogOutSession(this));

@@ -10,18 +10,14 @@ public static class CurrentState
         session.unk_2 = (int)data.output[1];
         if(session.currentRoom is not null)
         {
-            object locker = new();
             byte[] result = fPacket.payload
                         .Concat(BitConverter.GetBytes(session.EugenID))
                         .Concat(fPacket.payload.Skip(1))
                         .ToArray();
             FResponse response = new(fPacket.channel, FClientOpcode.BM_FRIEND_PRESENCE, [..result]);
-            for (int i = 0; i < session.currentRoom.Users.Count; i++)
+            foreach(var user in session.currentRoom.Users)
             {
-                if (session.currentRoom.Users[i] != session)
-                {
-                    await ProxyReader.FinalizePacket(await response.ToSend(),session.currentRoom.Users[i]);
-                }
+                await ProxyReader.FinalizePacket(await response.ToSend(),user.Value);
             }
         }
     }
