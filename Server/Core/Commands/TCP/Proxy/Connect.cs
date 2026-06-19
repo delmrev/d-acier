@@ -12,7 +12,6 @@ public static class ConnectMessage
         await Reader.ReadBytes(reader,"IIII");
         steamID = Reader.Readint64Le(reader);
         var u0 = await DatabaseManager.GetU0BySteamID(steamID);
-        var config = Global.GetConfigData();
         byte statusCode = (byte)StatusCode.SUCCESS;
         long EugenID = -1;
         if(u0 == null)

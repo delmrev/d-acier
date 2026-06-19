@@ -12,50 +12,69 @@ class Program
         try
         {
             LogManager.ThrowExceptions = true;
-            
+
             await DatabaseManager.Init();
             Log.Info("Database has started");
-            var Data = JsonReader.ReadJson<ConfigData>();
-            Global.SetConfigData(Data);
+
+            var config = ConfigData.Load();
+            Global.SetConfigData(config);
+
+            // Logging config
             var consoleRule = LogManager.Configuration?.LoggingRules
                 .FirstOrDefault(r => r.Targets.Any(t => t.Name == "console"));
-            if(!Data.EnableDebug)
+
+            if (!config.Logging.EnableDebug)
             {
                 consoleRule?.SetLoggingLevels(LogLevel.Info, LogLevel.Fatal);
                 LogManager.ReconfigExistingLoggers();
             }
-            if(Data.Ip is null || Data.Ip == "")
+
+            // Validate IP
+            if (string.IsNullOrWhiteSpace(config.Server.Address))
             {
-                Log.Fatal("Incorrect IP!\n Stopping servers...");
+                Log.Fatal("Incorrect server IP! Stopping...");
                 await DatabaseManager.Stop();
                 return;
             }
-            string certFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "cert");
-            string certPath = Path.Combine(certFolder, Data.CertName ?? "server.pfx");
-            if (!Directory.Exists(certFolder))
-            {
-                Directory.CreateDirectory(certFolder);
-            }
+
+            // Certificate
+            var certPath = Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory,
+                "SSL",
+                config.SSL.Certificate
+            );
+
+            var certDir = Path.GetDirectoryName(certPath);
+            if (!Directory.Exists(certDir))
+                Directory.CreateDirectory(certDir);
+
             if (!File.Exists(certPath))
             {
-                Log.Warn("Certificate file not found");
-                CertGenerator.GenerateCert(Data.CertName ?? "server.pfx");
+                Log.Warn("Certificate not found, generating new one...");
+                CertGenerator.GenerateCert(config.SSL.Certificate);
             }
 
             var cert = new X509Certificate2(certPath);
 
-            Log.Info("Certificate loaded: {0}, expires {1}", cert.Subject, cert.GetExpirationDateString());
+            // Servers
+            var tcpServer = new TCPServer(
+                config.Server.Address,
+                config.Server.TCP,
+                cert
+            );
 
-            // TCP server
-            var tcpServer = new TCPServer(Data.Ip, Data.TCPPort, cert);
+            var httpServer = new HttpServer(
+                config.Server.Address,
+                config.Server.HTTP
+            );
 
-            // HTTP server
-            var httpServer = new HttpServer(Data.Ip, Data.HTTPPort);
+            var httpsServer = new HttpsServer(
+                config.Server.Address,
+                config.Server.HTTPS,
+                cert
+            );
 
-            // HTTPS server
-            var httpsServer = new HttpsServer(Data.Ip, Data.HTTPSPort, cert);
-
-            // STUN server task
+            // STUN
             var stunTask = Task.Run(async () =>
             {
                 var addresses = Dns.GetHostEntry(Dns.GetHostName())
@@ -66,15 +85,18 @@ class Program
                 foreach (var address in addresses)
                     Log.Info("Discovered IP: {0}", address);
 
-                var endpoints = addresses.Select(a => new IPEndPoint(a, Data.STUNPort)).ToArray();
+                var endpoints = addresses
+                    .Select(a => new IPEndPoint(a, config.Server.STUN))
+                    .ToArray();
+
                 var stunUdpServer = new StunUdpServer(endpoints);
-                stunUdpServer.Start(Data.STUNPort);
-                Log.Info($"STUN server started on {Data.STUNPort}");
+                stunUdpServer.Start(config.Server.STUN);
+
+                Log.Info("STUN server started on {0}", config.Server.STUN);
             });
 
             Log.Info("Starting servers...");
 
-            // Run TCP, HTTP, HTTPS, STUN server in tasks
             var tasks = new[]
             {
                 Task.Run(() => tcpServer.Start()),
@@ -82,25 +104,29 @@ class Program
                 Task.Run(() => httpsServer.Start()),
                 stunTask
             };
+
             await Task.Delay(300);
             Log.Info("All servers started. Press Ctrl+C to stop.");
-           
-            // Graceful shutdown
+
             Console.CancelKeyPress += async (sender, e) =>
             {
                 e.Cancel = true;
+
                 Log.Info("Stopping servers...");
+
                 await Global.Stop();
                 httpServer.Dispose();
                 tcpServer.Dispose();
                 httpsServer.Dispose();
+
                 _ = DatabaseManager.Stop();
                 LogManager.Shutdown();
+
                 e.Cancel = false;
             };
+
             await Task.WhenAll(tasks);
 
-            // Wait indefinitely
             await Task.Delay(-1);
         }
         catch (Exception ex)

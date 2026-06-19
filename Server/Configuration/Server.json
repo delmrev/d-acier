@@ -1,0 +1,15 @@
+{
+    "Server": {
+        "Address": "0.0.0.0",
+        "HTTP": 8080,
+        "HTTPS": 443,
+        "STUN": 3478,
+        "TCP": 21001
+    },
+    "Logging": {
+        "EnableDebug" : false
+    },
+    "SSL": {
+        "Certificate": "tm.eugnet.com.pfx"
+    }
+}

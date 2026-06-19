@@ -125,6 +125,7 @@ public static class Global
            Confdata = data; 
         }
     }
+    
     public static ConfigData? GetConfigData()
     {
         lock (configDataLocker)
@@ -132,6 +133,7 @@ public static class Global
            return Confdata;
         }
     }
+    
     public static async Task Stop()
     {
         foreach(var maps in Players){

@@ -16,11 +16,11 @@ public static class CreateLobby
         fResponse = new(fPacket.channel, FClientOpcode.SystemMessage, buffer);
         await ProxyReader.FinalizePacket(await fResponse.ToSend(), session);
         var conf = Global.GetConfigData();
-        if(conf is null || conf?.Ip is null)
+        if(conf is null || conf?.Server.Address is null)
         {
             return;
         }
-        var ipStr = conf?.Ip.Split('.');
+        var ipStr = conf.Server.Address.Split('.');
         byte[] byteip = [byte.Parse(ipStr[0]), byte.Parse(ipStr[1]),byte.Parse(ipStr[2]),byte.Parse(ipStr[3])];
         Array.Reverse(byteip);
         buffer = await Writer.WriteBytes("BBHLLQs", 0x66, 0x00, 0, BitConverter.ToInt32(byteip),-1905684631, session.currentRoom.ID, "Relay.1");

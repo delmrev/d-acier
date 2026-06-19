@@ -2,28 +2,37 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+
 public class CertGenerator
 {
-    public static void GenerateCert(string name)
+    public static void GenerateCert(string fileName)
     {
-        var certFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "cert");
-        if (!Directory.Exists(certFolder))
-        {
-            Directory.CreateDirectory(certFolder);
-        }
+        var sslDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SSL");
+
+        Directory.CreateDirectory(sslDir);
+
+        var fullPath = Path.Combine(sslDir, fileName);
+
         using (RSA rsa = RSA.Create(2048))
         {
-            var request = new CertificateRequest("CN=tm.eugnet.com", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            var request = new CertificateRequest(
+                "CN=tm.eugnet.com",
+                rsa,
+                HashAlgorithmName.SHA256,
+                RSASignaturePadding.Pkcs1
+            );
 
             var sanBuilder = new SubjectAlternativeNameBuilder();
             sanBuilder.AddDnsName("tm.eugnet.com");
             request.CertificateExtensions.Add(sanBuilder.Build());
 
-            using (X509Certificate2 cert = request.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddYears(10)))
+            using (X509Certificate2 cert =
+                   request.CreateSelfSigned(
+                       DateTimeOffset.UtcNow,
+                       DateTimeOffset.UtcNow.AddYears(10)))
             {
                 byte[] pfxBytes = cert.Export(X509ContentType.Pfx, "");
-
-                File.WriteAllBytes(Path.Combine(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "cert"), name), pfxBytes);
+                File.WriteAllBytes(fullPath, pfxBytes);
             }
         }
     }
