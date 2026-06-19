@@ -1,10 +1,10 @@
 public enum LobbyCommandsClient : byte
 {
-    MESSAGE_HOST_CHANGED = 0x68, // h
-    LOBBY_ENTER_FINISHED = 0x6A, // j
-    DISCONNECT = 0x6C, // l
-    UNK_DISCONNECT = 0x6B, // k 
-    KICK = 0x67,  // g
-    UNK2_DISCONNECT = 0x6F, // o
-    CONNECT = 0x63 // c
+    MessageHostChanged = 0x68, // h
+    LobbyEnterFinished = 0x6A, // j
+    Disconnect = 0x6C, // l
+    UnknownDisconnect = 0x6B, // k 
+    Kick = 0x67,  // g
+    Unknown2Disconnect = 0x6F, // o
+    Connect = 0x63 // c
 }

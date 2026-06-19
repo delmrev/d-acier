@@ -12,11 +12,11 @@ public static class ConnectMessage
         await Reader.ReadBytes(reader,"IIII");
         steamID = Reader.Readint64Le(reader);
         var u0 = await DatabaseManager.GetU0BySteamID(steamID);
-        byte statusCode = (byte)StatusCode.SUCCESS;
+        byte statusCode = (byte)StatusCode.Success;
         long EugenID = -1;
         if(u0 == null)
         {
-            statusCode = (byte)StatusCode.UNKNOWNEXTERNALAPIACCOUNT;
+            statusCode = (byte)StatusCode.UnknownExternalApiAccount;
         } else
         {
             EugenID = u0.EugenID;
@@ -25,7 +25,7 @@ public static class ConnectMessage
         }
         if(EugenID != -1 && await Global.GetSession(EugenID,session.game_id) != null)
         {
-            statusCode = (byte)StatusCode.ALREADYINSESSION;
+            statusCode = (byte)StatusCode.AlreadyInSession;
         }
         Log.Debug($"Packet: c ->");
         var buffer = await Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, EugenID, (long)0, 60, statusCode, (long)0);
