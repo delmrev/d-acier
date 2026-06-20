@@ -86,7 +86,7 @@ public class TCPServer : IDisposable
             {
                 var options = new SslServerAuthenticationOptions
                 {
-                    EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+                    EnabledSslProtocols = SslProtocols.None,
                     ServerCertificate = cert,
                     ClientCertificateRequired = false,
                     CertificateRevocationCheckMode = X509RevocationMode.NoCheck
