@@ -85,7 +85,7 @@ public class HttpsServer : IDisposable
             {
                 var options = new SslServerAuthenticationOptions
                 {
-                    EnabledSslProtocols = SslProtocols.Tls12,
+                    EnabledSslProtocols = SslProtocols.None,
                     ServerCertificate = cert,
                     ClientCertificateRequired = false,
                     CertificateRevocationCheckMode = X509RevocationMode.NoCheck
