@@ -66,7 +66,7 @@ There's simple quick-start guide to run and play. Get the latest [release](https
 4. Register (write any data)
 
 > [!IMPORTANT]
-> Please use only the registration window; using other windows, such as the login window or the password recovery window, will result in errors.
+> Please use only the registration window. Using other windows, such as the login or password recovery windows, will result in errors. For Wargame, use the login window.
 
 ## Supported games
 
