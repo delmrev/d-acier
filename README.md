@@ -73,9 +73,11 @@ There's simple quick-start guide to run and play. Get the latest [release](https
 | Name | Architecture | Supported |
 | :--- | :---: | :--- |
 | Steel Division 2 | x64 | Native |
-| Wargame | x86 | Yes |
+| Wargame : Red Dragon | x86 | Yes |
 | Warno | x64 | Yes |
 | Steel Division : Normandy 44 | x64 | No |
+| Wargame : European Escalation | x86 | No |
+| Wargame : Airland Battle | x86 | No |
 
 Other games not included in this list have not been tested; they will most likely be added soon
 
