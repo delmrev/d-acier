@@ -3,7 +3,7 @@ public class FPacket
     public byte Opcode;
     public int channel;
     public ushort PayloadLength;
-    public FServerOpcode fOpcode;
+    public byte fOpcode;
     public byte[] payload;
     public FPacket(byte[] bytes)
     {
@@ -12,18 +12,27 @@ public class FPacket
         Opcode = reader.ReadByte();
         channel = Reader.ReadInt32Be(reader);
         PayloadLength = Reader.ReadInt16Be(reader);
-        fOpcode = (FServerOpcode)reader.ReadByte();
+        fOpcode = reader.ReadByte();
         payload = reader.ReadBytes(PayloadLength-1);
+    }
+    public FPacket(int channel,byte opcode, List<byte> payload)
+    {
+        fOpcode = opcode;
+        this.channel = channel;
+        this.payload = [..payload];
+        PayloadLength = (ushort)payload.Count;
+        PayloadLength++;
     }
     public async Task<List<byte>> ToSend()
     {
         var buffer = await Writer.WriteBytes("BIHB",
-        (byte)'f',
+        0x66,
         channel,
         PayloadLength,
         fOpcode
         );
         buffer.AddRange(payload);
+        buffer.InsertRange(0,await Writer.WriteBytes("H",buffer.Count));
         return buffer;
     }
 }

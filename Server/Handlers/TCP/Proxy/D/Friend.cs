@@ -1,8 +1,20 @@
-public class Friend
+using EugnetProtocol.Common.Interfaces;
+
+namespace EugnetProtocol.TCP.Proxy.D
 {
-    public static async Task Process(DPacket dPacket, Session session, TCPServer server)
+    public class Friend : IDPacketHandler
     {
-        var fpacket = new FResponse(dPacket.channel, FClientOpcode.CONTINUE, await Writer.WriteBytes("B", StatusCode.Success));
-        await ProxyReader.FinalizePacket(await fpacket.ToSend(), session);
+        public async Task Process(DPacket dPacket, Session session)
+        {
+            var buffer = await Writer.WriteBytes("BII", (byte)'d', dPacket.channel, 2);
+            buffer.InsertRange(0,await Writer.WriteBytes("H",buffer.Count));
+            await session.Send(buffer);
+            var fpacket = new FPacket(dPacket.channel, (byte)FClientOpcode.CONTINUE, await Writer.WriteBytes("B", StatusCode.Success));
+            await session.Send(await fpacket.ToSend());
+            if (!session.channels.Contains(2))
+            {
+                session.channels.Add(2);
+            }
+        }
     }
 }

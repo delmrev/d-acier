@@ -8,37 +8,38 @@ using NLog;
 public class TCPServer : IDisposable
 {
     private static readonly Logger Log = LogManager.GetCurrentClassLogger();
-
+    
     public Socket? Socket_TCP { get; private set; }
     public EndPoint EndPoint { get; private set; }
     public string Address { get; private set; }
     public int Port { get; private set; }
-    private X509Certificate2 cert;
 
-    private bool IsStarted;
-    private CancellationTokenSource cts;
+    private readonly X509Certificate2 _cert;
+    private ProxyManager _proxyManager = new();
+    private bool _isStarted;
+    private readonly CancellationTokenSource _cts;
 
     public TCPServer(string addres, int port, X509Certificate2 certificate)
     {
-        cert = certificate;
+        _cert = certificate;
         Address = addres;
         Port = port;
         EndPoint = new IPEndPoint(IPAddress.Parse(addres), port);
-        cts = new CancellationTokenSource();
+        _cts = new CancellationTokenSource();
     }
 
     public TCPServer(string address, int port, EndPoint endPoint, X509Certificate2 certificate)
     {
-        cert = certificate;
+        _cert = certificate;
         Address = address;
         Port = port;
         EndPoint = endPoint;
-        cts = new CancellationTokenSource();
+        _cts = new CancellationTokenSource();
     }
 
     public async Task Start()
     {
-        if (IsStarted)
+        if (_isStarted)
         {
             Log.Warn("Server is already started");
             return;
@@ -48,15 +49,15 @@ public class TCPServer : IDisposable
         Socket_TCP.Bind(EndPoint);
         Socket_TCP.Listen();
 
-        IsStarted = true;
+        _isStarted = true;
         Log.Info("TLS 1.3 (TCP) Server Started on {0}:{1}", Address, Port);
 
-        while (!cts.Token.IsCancellationRequested)
+        while (!_cts.Token.IsCancellationRequested)
         {
             Socket clientSocket;
             try
             {
-                clientSocket = await Socket_TCP.AcceptAsync(cts.Token);
+                clientSocket = await Socket_TCP.AcceptAsync(_cts.Token);
             }
             catch (OperationCanceledException)
             {
@@ -67,7 +68,7 @@ public class TCPServer : IDisposable
                 Log.Error(ex, "Error accepting client");
                 continue;
             }
-            _ = Task.Run(() => HandleClient(clientSocket, cts.Token), cts.Token);
+            _ = Task.Run(() => HandleClient(clientSocket, _cts.Token), _cts.Token);
         }
     }
 
@@ -87,7 +88,7 @@ public class TCPServer : IDisposable
                 var options = new SslServerAuthenticationOptions
                 {
                     EnabledSslProtocols = SslProtocols.None,
-                    ServerCertificate = cert,
+                    ServerCertificate = _cert,
                     ClientCertificateRequired = false,
                     CertificateRevocationCheckMode = X509RevocationMode.NoCheck
                 };
@@ -98,7 +99,7 @@ public class TCPServer : IDisposable
                 byte[] buffer = new byte[4096];
                 int read;
 
-                while (ssl.CanRead && (read = await ssl.ReadAsync(buffer, 0, buffer.Length, token)) > 0 && !cts.IsCancellationRequested)
+                while (ssl.CanRead && (read = await ssl.ReadAsync(buffer, 0, buffer.Length, token)) > 0 && !_cts.IsCancellationRequested)
                 {
                     await ProcessIncoming(buffer.AsSpan(0, read).ToArray(), session);
                 }
@@ -131,7 +132,7 @@ public class TCPServer : IDisposable
                 ushort length = Reader.ReadInt16Be(reader);
                 var body = reader.ReadBytes(length);
                 Log.Debug("Incoming packet ({0} bytes):\n{1}", length, HexDump.Dump(body));
-                await ProxyReader.ProcessPacket(body, session);
+                await _proxyManager.Handle(body, session);
             }
         }
         catch (Exception ex)
@@ -159,14 +160,14 @@ public class TCPServer : IDisposable
 
     public void Stop()
     {
-        if (!IsStarted) return;
+        if (!_isStarted) return;
 
-        cts?.Cancel();
+        _cts?.Cancel();
         Socket_TCP?.Close();
         Socket_TCP?.Dispose();
-        IsStarted = false;
+        _isStarted = false;
         Log.Info("TCP Server stopped");
-        cts?.Dispose();
+        _cts?.Dispose();
     }
 
     public void Dispose() => Stop();

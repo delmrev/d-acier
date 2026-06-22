@@ -1,14 +1,19 @@
-public static class LobbyMsg
+using EugnetProtocol.Common.Interfaces;
+
+namespace EugnetProtocol.TCP.Proxy.F
 {
-    public static async Task Process(FPacket fPacket, Session session)
+    public class LobbyMsg : IFPacketHandler
     {
-        if(session.currentRoom is null)
+        public async Task Process(FPacket fPacket, Session session)
         {
-            return;
-        }
-        foreach(var user in session.currentRoom.Users)
-        {
-            await ProxyReader.FinalizePacket(await fPacket.ToSend(),user.Value);
+            if(session.currentRoom is null)
+            {
+                return;
+            }
+            foreach(var user in session.currentRoom.Users)
+            {
+                await user.Value.Send(await fPacket.ToSend());
+            }
         }
     }
 }

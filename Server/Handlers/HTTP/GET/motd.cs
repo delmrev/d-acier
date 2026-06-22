@@ -1,4 +1,4 @@
-namespace HTTP.Metods.GET
+namespace EugnetProtocol.HTTP.GET
 {
     public class Motd
     {

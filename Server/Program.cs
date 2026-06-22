@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Security.Cryptography.X509Certificates;
+using Database;
 using NLog;
 using stungun.common.server;
 
@@ -17,7 +18,7 @@ class Program
             Log.Info("Database has started");
 
             var config = ConfigData.Load();
-            Global.SetConfigData(config);
+            GlobalManager.SetConfigData(config);
 
             // Logging config
             var consoleRule = LogManager.Configuration?.LoggingRules
@@ -114,7 +115,7 @@ class Program
 
                 Log.Info("Stopping servers...");
 
-                await Global.Stop();
+                await GlobalManager.Stop();
                 httpServer.Dispose();
                 tcpServer.Dispose();
                 httpsServer.Dispose();

@@ -1,37 +1,40 @@
+using EugnetProtocol.Common.Interfaces;
 using NLog;
-
-public static class LobbySettings
+namespace EugnetProtocol.TCP.Proxy.F
 {
-    private static readonly Logger Log = LogManager.GetCurrentClassLogger();
-    public static async Task Process(FPacket fPacket, Session session)
+    public class LobbySettings : IFPacketHandler
     {
-        object[] values;
-        if(session.currentRoom is null)
+        private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+        public async Task Process(FPacket fPacket, Session session)
         {
-            Log.Error("Try to get current room but dont have current room");
-            return;
-        }
-        values = await Reader.ReadBytes(fPacket.payload, "QIBc");
-        if((byte)values[2] == 0x01) // if flag, dont save
-        {
-            Log.Debug($"Dont save; id: {values[1]}, value: {values[3]}");
-            return;
-        }
-        int id = (int)values[1];
-        string value = (string)values[3];
-        if (!session.currentRoom.RoomSettings.TryAdd(id, value))
-        {
-            if(value == session.currentRoom.RoomSettings[id])
+            object[] values;
+            if(session.currentRoom is null)
             {
+                Log.Error("Try to get current room but dont have current room");
                 return;
             }
-            session.currentRoom.RoomSettings[id] = value;
-        }
-        var buf = await Writer.WriteBytes("QIBc",session.currentRoom.ID,id,(byte)values[2],value);
-        FResponse response = new(fPacket.channel,FClientOpcode.LobbyInfo,buf);
-        foreach(var user in session.currentRoom.Users)
-        {
-            await ProxyReader.FinalizePacket(await response.ToSend(),user.Value);
+            values = await Reader.ReadBytes(fPacket.payload, "QIBc");
+            if((byte)values[2] == 0x01) // if flag, dont save
+            {
+                Log.Debug($"Dont save; id: {values[1]}, value: {values[3]}");
+                return;
+            }
+            int id = (int)values[1];
+            string value = (string)values[3];
+            if (!session.currentRoom.RoomSettings.TryAdd(id, value))
+            {
+                if(value == session.currentRoom.RoomSettings[id])
+                {
+                    return;
+                }
+                session.currentRoom.RoomSettings[id] = value;
+            }
+            var buf = await Writer.WriteBytes("QIBc",session.currentRoom.ID,id,(byte)values[2],value);
+            FPacket response = new(fPacket.channel,(byte)FClientOpcode.LobbyInfo,buf);
+            foreach(var user in session.currentRoom.Users)
+            {
+                await user.Value.Send(await response.ToSend());
+            }
         }
     }
 }

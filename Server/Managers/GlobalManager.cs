@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using NLog;
 
-public static class Global
+public static class GlobalManager
 {
     private static readonly Logger Log = LogManager.GetCurrentClassLogger();
     private static readonly ConcurrentDictionary<int, ConcurrentDictionary<long,Lobby>> Rooms = new();
@@ -86,7 +86,7 @@ public static class Global
             chat.users.Remove(session);
         }
     }
-    public static async Task SendMessage(FResponse response, string chatKey, int gameid)
+    public static async Task SendMessage(FPacket response, string chatKey, int gameid)
     {
         GameChatList.TryAdd(gameid,new());
         var ChatList = GameChatList[gameid];
@@ -96,7 +96,7 @@ public static class Global
         } else {
             for (int i = 0; i < chat.users.Count; i++)
             {
-                await ProxyReader.FinalizePacket(await response.ToSend(),chat.users[i]);
+                await chat.users[i].Send(await response.ToSend());
             }
         }
     }

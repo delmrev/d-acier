@@ -1,30 +1,33 @@
 using System.Buffers.Binary;
+using EugnetProtocol.Common.Interfaces;
 using NLog;
-
-public static class UserData
+namespace EugnetProtocol.TCP.Proxy.F
 {
-    private static readonly Logger Log = LogManager.GetCurrentClassLogger();
-    public async static Task Process(FPacket fPacket, Session session)
+    public class UserData : IFPacketHandler
     {
-        var data = await Reader.ReadBytes(fPacket.payload,"Q");
-        if(session.currentRoom != null)
+        private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+        public async Task Process(FPacket fPacket, Session session)
         {
-            var user = session.currentRoom.Users
-                .Where(r => (long)data[0] == r.Value.EugenID)
-                .Select(r => r.Value)
-                .FirstOrDefault();
-            if(user != null)
+            var data = await Reader.ReadBytes(fPacket.payload,"Q");
+            if(session.currentRoom != null)
             {
-                Log.Info($"Data user {session.EugenID} -> {user.EugenID}");
-                BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), session.EugenID);
-                await ProxyReader.FinalizePacket(await fPacket.ToSend(),user);
+                var user = session.currentRoom.Users
+                    .Where(r => (long)data[0] == r.Value.EugenID)
+                    .Select(r => r.Value)
+                    .FirstOrDefault();
+                if(user != null)
+                {
+                    Log.Info($"Data user {session.EugenID} -> {user.EugenID}");
+                    BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), session.EugenID);
+                    await user.Send(await fPacket.ToSend());
+                } else
+                {
+                    Log.Error($"User dont found: {data[0]}");
+                }
             } else
             {
-                Log.Error($"User dont found: {data[0]}");
+                Log.Error("Try to send message to user but lobby is null");
             }
-        } else
-        {
-            Log.Error("Try to send message to user but lobby is null");
         }
     }
 }

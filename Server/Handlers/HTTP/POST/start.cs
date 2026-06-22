@@ -1,4 +1,4 @@
-namespace HTTP.Metods.POST
+namespace EugnetProtocol.HTTP.POST
 {
     public class HTTPEventStart
     {

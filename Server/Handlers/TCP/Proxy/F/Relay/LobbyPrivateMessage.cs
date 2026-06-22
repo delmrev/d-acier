@@ -1,18 +1,21 @@
+using EugnetProtocol.Common.Interfaces;
 using NLog;
-
-public static class LobbyPrivateMSG
+namespace EugnetProtocol.TCP.Proxy.F
 {
-    private static readonly Logger Log = LogManager.GetCurrentClassLogger();
-    public async static Task Process(FPacket fPacket, Session session)
+    public class LobbyPrivateMSG : IFPacketHandler
     {
-        if(session.currentRoom is null)
+        private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+        public async Task Process(FPacket fPacket, Session session)
         {
-            return;
-        }
-        foreach(var user in session.currentRoom.Users)
-        {
-            Log.Debug("Change visibility");
-            await ProxyReader.FinalizePacket(await fPacket.ToSend(),user.Value);
+            if(session.currentRoom is null)
+            {
+                return;
+            }
+            foreach(var user in session.currentRoom.Users)
+            {
+                Log.Debug("Change visibility");
+                await user.Value.Send(await fPacket.ToSend());
+            }
         }
     }
 }

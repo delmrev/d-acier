@@ -1,6 +1,7 @@
+using Database;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-namespace HTTP.Metods.GET
+namespace EugnetProtocol.HTTP.GET
 {
     public class Ustat
     {

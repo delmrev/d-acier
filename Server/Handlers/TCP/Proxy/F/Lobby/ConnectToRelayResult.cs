@@ -1,9 +1,14 @@
-public static class Continue
+using EugnetProtocol.Common.Interfaces;
+
+namespace EugnetProtocol.TCP.Proxy.F
 {
-    public async static Task Process(FPacket fPacket, Session session)
+    public class Continue : IFPacketHandler
     {
-        var buffer = await Writer.WriteBytes("B", StatusCode.Success);
-        FResponse fresponse = new(fPacket.channel,FClientOpcode.CONTINUE,buffer);
-        await ProxyReader.FinalizePacket(await fresponse.ToSend(),session);
+        public async Task Process(FPacket fPacket, Session session)
+        {
+            var buffer = await Writer.WriteBytes("B", StatusCode.Success);
+            FPacket fresponse = new(fPacket.channel,(byte)FClientOpcode.CONTINUE,buffer);
+            await session.Send(await fresponse.ToSend());
+        }
     }
 }

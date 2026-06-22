@@ -1,12 +1,17 @@
-public class LeaveChat
+using EugnetProtocol.Common.Interfaces;
+
+namespace EugnetProtocol.TCP.Proxy.F
 {
-    public static async Task Process(FPacket fPacket, Session session)
+    public class LeaveChat : IFPacketHandler
     {
-        var data = await Reader.ReadBytes(fPacket.payload, "IS"); // gameid, chatKey
-        var buffer = await Writer.WriteBytes("Qs", session.EugenID, (string)data[1]);
-        FResponse response = new(fPacket.channel, FClientOpcode.BM_CHAT_LEAVE, buffer);
-        await ProxyReader.FinalizePacket(await response.ToSend(), session);
-        session.currentChat = null;
-        await Global.LeftChat((string)data[1],session);
+        public async Task Process(FPacket fPacket, Session session)
+        {
+            var data = await Reader.ReadBytes(fPacket.payload, "IS"); // gameid, chatKey
+            var buffer = await Writer.WriteBytes("Qs", session.EugenID, (string)data[1]);
+            FPacket response = new(fPacket.channel, (byte)FClientOpcode.BM_CHAT_LEAVE, buffer);
+            await session.Send(await response.ToSend());
+            session.currentChat = null;
+            await GlobalManager.LeftChat((string)data[1],session);
+        }
     }
 }

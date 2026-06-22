@@ -1,5 +1,6 @@
-using HTTP.Metods.GET;
-using HTTP.Metods.POST;
+using Database;
+using EugnetProtocol.HTTP.GET;
+using EugnetProtocol.HTTP.POST;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NLog;

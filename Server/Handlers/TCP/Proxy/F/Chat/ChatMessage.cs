@@ -1,10 +1,14 @@
-public class ChatMessage
+using EugnetProtocol.Common.Interfaces;
+
+namespace EugnetProtocol.TCP.Proxy.F
 {
-    public static async Task Process(FPacket fPacket, Session session)
+    public class ChatMessage : IFPacketHandler
     {
-        var values = await Reader.ReadBytes(fPacket.payload, "QsIs");
-        FResponse response = new(fPacket.channel, FClientOpcode.BM_CHAT_MESSAGE, await Writer.WriteBytes("Qsss", session.EugenID, $"{values[1]}", $"{session.Name}", $"{values[3]}"));
-        await ProxyReader.FinalizePacket(await response.ToSend(), session);
-        await Global.SendMessage(response,(string)values[1],session.game_id);
+        public async Task Process(FPacket fPacket, Session session)
+        {
+            var values = await Reader.ReadBytes(fPacket.payload, "QsIs");
+            FPacket response = new(fPacket.channel, (byte)FClientOpcode.BM_CHAT_MESSAGE, await Writer.WriteBytes("Qsss", session.EugenID, $"{values[1]}", $"{session.Name}", $"{values[3]}"));
+            await GlobalManager.SendMessage(response,(string)values[1],session.game_id);
+        }
     }
 }

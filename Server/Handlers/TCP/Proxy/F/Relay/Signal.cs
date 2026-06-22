@@ -1,17 +1,22 @@
-public static class Signal
+using EugnetProtocol.Common.Interfaces;
+
+namespace EugnetProtocol.TCP.Proxy.F
 {
-    public async static Task Process(FPacket fPacket, Session session)
+    public class Signal : IFPacketHandler
     {
-        if(session.currentRoom is null)
+        public async Task Process(FPacket fPacket, Session session)
         {
-            return;
-        }
-        var values = await Reader.ReadBytes(fPacket.payload,"B");
-        if((byte)values[0] == 0x00)
-        {
-            foreach(var user in session.currentRoom.Users)
+            if(session.currentRoom is null)
             {
-                await ProxyReader.FinalizePacket(await fPacket.ToSend(),user.Value);
+                return;
+            }
+            var values = await Reader.ReadBytes(fPacket.payload,"B");
+            if((byte)values[0] == 0x00)
+            {
+                foreach(var user in session.currentRoom.Users)
+                {
+                    await user.Value.Send(await fPacket.ToSend());
+                }
             }
         }
     }

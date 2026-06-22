@@ -4,7 +4,7 @@ public enum FServerOpcode : byte
     LobbyPrivateMessage = 0xEB,
     CONTINUE = 0xC1,
     FRIEND_COMMAND = 0xC2, // Client- BQ
-    PING = 0xC3,
+    KEEP_ALIVE_PACKET = 0xC3,
     Signal = 0xC4,
     CURRENT_STATE = 0xC5,
     CREATE_TEAM = 0xC6,
@@ -18,7 +18,7 @@ public enum FServerOpcode : byte
     NETWORK_CHANNEL_GET_FRIENDS = 0xD4,
     CONNECT = 0xE1, //Steam Connect: QBQ ;Direct TCP connect: QBH#cH#c; //STUN_INFO: QBBLHLH#v;
     LOBBY_SYSTEM_MSG = 0xE2,
-    PING_2 = 0xE3,
+    KEEP_ALIVE_PACKET_2 = 0xE3,
     unk_1 = 0xE5, // QQ
     unk = 0xE7, // I
     GET_PUBLIC_INFORMATION = 0xE8,

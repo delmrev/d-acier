@@ -1,68 +1,73 @@
-using System.Diagnostics;
-using Database.Tables;
+using Database;
+using EugnetProtocol.Common.Interfaces;
 using NLog;
-
-public static class OldConnect
+namespace EugnetProtocol.TCP.Proxy
 {
-    private static readonly Logger Log = LogManager.GetCurrentClassLogger();
-    public static async Task Process(byte[] IncomeData, Session session)
+    public class OldConnect : IProxyHandler
     {
-        using MemoryStream m = new(IncomeData);
-        using BinaryReader reader = new(m);
-        var data = await Reader.ReadBytes(reader,"BIISSBS");
-        long steamID = long.Parse((string)data[6]);
-        var user = await DatabaseManager.GetU0BySteamID(steamID);
-        byte statusCode = (byte)StatusCode.Success;
-        int gameid = (int)data[2];
-        if (user is not null)
+        private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+        public async Task Process(byte[] IncomeData, Session session) 
         {
-            Log.Debug($"1Packet: c ->");
-            if(string.IsNullOrEmpty(user.Password))
+            using MemoryStream m = new(IncomeData);
+            using BinaryReader reader = new(m);
+            var data = await Reader.ReadBytes(reader,"BIISSBS");
+            long steamID = long.Parse((string)data[6]);
+            var user = await DatabaseManager.GetU0BySteamID(steamID);
+            byte statusCode = (byte)StatusCode.Success;
+            int gameid = (int)data[2];
+            if (user is not null)
             {
+                Log.Debug($"1Packet: c ->");
+                if(string.IsNullOrEmpty(user.Password))
+                {
+                    user.Password = (string)data[4];
+                    DatabaseManager.UpdateData(user);
+                } else if(user.Password != (string)data[4])
+                {
+                    statusCode = (byte)StatusCode.IncorrectIdentification;
+                    var buf = await Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, -1, (long)0, 60, statusCode, (long)0);
+                    buf.InsertRange(0,await Writer.WriteBytes("H",buf.Count));
+                    await session.Send(buf);
+                    return;
+                }
+                var stat = await DatabaseManager.GetData(user.EugenID,gameid);
+                if(stat.Count == 0)
+                {
+                    await DatabaseManager.CreateAccount(steamID,gameid);
+                }
+                session.game_id = gameid;
+                session.EugenID = user.EugenID;
+                session.Name = user.Name;
+                var buffer = await Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, user.EugenID, (long)0, 60, statusCode, (long)0);
+                buffer.InsertRange(0,await Writer.WriteBytes("H",buffer.Count));
+                await session.Send(buffer);
+                Log.Debug($"Packet: c <-");
+            } else
+            {
+                Log.Debug($"Packet: c ->");
+                var newEugid = await DatabaseManager.CreateAccount(steamID,0);
+                if(newEugid == -1){
+                    Log.Error("OldLogin: EugenID is -1");
+                    return;
+                }
+                user = await DatabaseManager.GetU0(newEugid);
+                if(user is null)
+                {
+                    Log.Error("OldConnect: user is null");
+                    return;
+                }
+                user.Name = (string)data[3];
                 user.Password = (string)data[4];
                 DatabaseManager.UpdateData(user);
-            } else if(user.Password != (string)data[4])
-            {
-                statusCode = (byte)StatusCode.IncorrectIdentification;
-                var buf = await Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, -1, (long)0, 60, statusCode, (long)0);
-                await ProxyReader.FinalizePacket(buf,session);
-                return;
-            }
-            var stat = await DatabaseManager.GetData(user.EugenID,gameid);
-            if(stat.Count == 0)
-            {
                 await DatabaseManager.CreateAccount(steamID,gameid);
+                session.game_id = gameid;
+                session.EugenID = newEugid;
+                session.Name = (string)data[3];
+                var buffer = await Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, newEugid, (long)0, 60, statusCode, (long)0);
+                buffer.InsertRange(0,await Writer.WriteBytes("H",buffer.Count));
+                await session.Send(buffer);
+                Log.Debug($"Packet: c <-");
             }
-            session.game_id = gameid;
-            session.EugenID = user.EugenID;
-            session.Name = user.Name;
-            var buffer = await Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, user.EugenID, (long)0, 60, statusCode, (long)0);
-            await ProxyReader.FinalizePacket(buffer, session);
-            Log.Debug($"Packet: c <-");
-        } else
-        {
-            Log.Debug($"Packet: c ->");
-            var newEugid = await DatabaseManager.CreateAccount(steamID,0);
-            if(newEugid == -1){
-                Log.Error("OldLogin: EugenID is -1");
-                return;
-            }
-            user = await DatabaseManager.GetU0(newEugid);
-            if(user is null)
-            {
-                Log.Error("OldConnect: user is null");
-                return;
-            }
-            user.Name = (string)data[3];
-            user.Password = (string)data[4];
-            DatabaseManager.UpdateData(user);
-            await DatabaseManager.CreateAccount(steamID,gameid);
-            session.game_id = gameid;
-            session.EugenID = newEugid;
-            session.Name = (string)data[3];
-            var buffer = await Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, newEugid, (long)0, 60, statusCode, (long)0);
-            await ProxyReader.FinalizePacket(buffer, session);
-            Log.Debug($"Packet: c <-");
         }
     }
 }

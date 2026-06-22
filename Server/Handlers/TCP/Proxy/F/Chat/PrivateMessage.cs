@@ -1,17 +1,20 @@
+using EugnetProtocol.Common.Interfaces;
 using NLog;
-
-public class PrivateMessage
+namespace EugnetProtocol.TCP.Proxy.F
 {
-    private static readonly Logger Log = LogManager.GetCurrentClassLogger();
-    public static async Task Process(FPacket fPacket, Session session)
+    public class PrivateMessage : IFPacketHandler
     {
-        var values = await Reader.ReadBytes(fPacket.payload,"I");
-        var friend = await Global.GetSession((long)values[0],session.game_id);
-        if(friend == null)
+        private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+        public async Task Process(FPacket fPacket, Session session)
         {
-            Log.Warn("Try to send message to user who offline");
-            return;
+            var values = await Reader.ReadBytes(fPacket.payload,"I");
+            var friend = await GlobalManager.GetSession((long)values[0],session.game_id);
+            if(friend == null)
+            {
+                Log.Warn("Try to send message to user who offline");
+                return;
+            }
+            await friend.Send(await fPacket.ToSend());
         }
-        await ProxyReader.FinalizePacket(await fPacket.ToSend(),friend);
     }
 }
