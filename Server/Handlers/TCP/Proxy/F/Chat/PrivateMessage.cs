@@ -7,14 +7,16 @@ namespace EugnetProtocol.TCP.Proxy.F
         private static readonly Logger Log = LogManager.GetCurrentClassLogger();
         public async Task Process(FPacket fPacket, Session session)
         {
-            var values = await Reader.ReadBytes(fPacket.payload,"I");
+            var values = await Reader.ReadBytes(fPacket.payload,"QS");
             var friend = await GlobalManager.GetSession((long)values[0],session.game_id);
             if(friend == null)
             {
                 Log.Warn("Try to send message to user who offline");
                 return;
             }
-            await friend.Send(await fPacket.ToSend());
+            var buffer = await Writer.WriteBytes("QS",session.EugenID,(string)values[1]);
+            FPacket response = new(fPacket.channel,(byte)FClientOpcode.BM_FRIEND_CHAT,buffer);
+            await friend.Send(await response.ToSend());
         }
     }
 }
