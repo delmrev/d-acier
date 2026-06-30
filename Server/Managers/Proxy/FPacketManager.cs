@@ -21,22 +21,24 @@ namespace EugnetProtocol.TCP.Proxy
             _handlers.Add((byte)FServerOpcode.CHAT_LEAVE, new LeaveChat());
             _handlers.Add((byte)FServerOpcode.CHAT_MSG, new ChatMessage());
             _handlers.Add((byte)FServerOpcode.LobbyPrivateMessage, new LobbyPrivateMSG());
-            _handlers.Add((byte)FServerOpcode.Signal, new Signal());
+            _handlers.Add((byte)FServerOpcode.RELAY_CONTROLMSG, new Signal());
             _handlers.Add((byte)FServerOpcode.BM_FRIEND_MESSAGE, new PrivateMessage());
             _handlers.Add((byte)FServerOpcode.GET_PUBLIC_INFORMATION, new GetPublicInformation());
-            _handlers.Add((byte)FServerOpcode.GET_ROOM_LIST, new GetRoomList());
+            _handlers.Add((byte)FServerOpcode.GET_ROOM_LIST, new GetDedicatedRoomList());
             _handlers.Add((byte)FServerOpcode.LOBBY_SYSTEM_MSG, new LobbySystemMsg());
             _handlers.Add((byte)FServerOpcode.CURRENT_STATE, new CurrentState());
             _handlers.Add((byte)FServerOpcode.SEND_CHAT_MSG_LOBBY, new LobbyMsg());
             _handlers.Add((byte)FServerOpcode.CONTINUE, new Continue());
             _handlers.Add((byte)FServerOpcode.CONNECT, new ConnectStartP2P());
             _handlers.Add((byte)FServerOpcode.LOBBY_MSG, new LobbyInfoMsg());
+            _handlers.Add((byte)FServerOpcode.BM_FRIEND_GET_EXTERNAL_ID, new GetFriendExternalID());
+            _handlers.Add((byte)FServerOpcode.BM_FRIEND_GET_EUGNET_ID, new GetFriendEugenID());
             var keepAliveHandler = new Keep_Alive();
             _handlers.Add((byte)FServerOpcode.KEEP_ALIVE_PACKET, keepAliveHandler);
             _handlers.Add((byte)FServerOpcode.KEEP_ALIVE_PACKET_2, keepAliveHandler);
             _handlers.Add((byte)FServerOpcode.FRIEND_COMMAND, new LambdaHandler(async (p, s) =>
             {
-                if (p.channel == 2)
+                if (s.channels.TryGetValue("friend", out int value) && p.channel == value)
                 {
                     await _friendCommand.Process(p, s);
                 }

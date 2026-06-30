@@ -8,7 +8,7 @@ namespace EugnetProtocol.TCP.Proxy.F
         {
             var values = await Reader.ReadBytes(fPacket.payload, "QsIs");
             FPacket response = new(fPacket.channel, (byte)FClientOpcode.BM_CHAT_MESSAGE, await Writer.WriteBytes("Qsss", session.EugenID, $"{values[1]}", $"{session.Name}", $"{values[3]}"));
-            await GlobalManager.SendMessage(response,(string)values[1],session.game_id);
+            await ChatManager.Instance.SendMessage(response,(string)values[1],session.game_id);
         }
     }
 }

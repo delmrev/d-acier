@@ -26,6 +26,16 @@ namespace EugnetProtocol.TCP.Proxy.F
                     {
                         await user.Value.Send(await response.ToSend());
                     }   
+                    if(session.currentRoom.Users[userId].channels.TryGetValue("Relay.1", out int value))
+                    {
+                        GPacket gPacket = new(value);
+                        await session.currentRoom.Users[userId].Send(await gPacket.ToSend());
+                    }
+                    if(session.currentRoom.Users[userId].channels.TryGetValue("ath", out int value1))
+                    {
+                        GPacket gPacket = new(value1);
+                        await session.currentRoom.Users[userId].Send(await gPacket.ToSend());
+                    }
                 break;
             }
         }

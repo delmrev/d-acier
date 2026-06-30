@@ -8,7 +8,7 @@ namespace EugnetProtocol.TCP.Proxy.F
         public async Task Process(FPacket fPacket, Session session)
         {
             var values = await Reader.ReadBytes(fPacket.payload,"QS");
-            var friend = await GlobalManager.GetSession((long)values[0],session.game_id);
+            var friend = await GlobalManager.Instance.GetSession((long)values[0],session.game_id);
             if(friend == null)
             {
                 Log.Warn("Try to send message to user who offline");

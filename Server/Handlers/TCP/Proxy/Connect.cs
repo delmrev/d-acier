@@ -27,7 +27,7 @@ namespace EugnetProtocol.TCP.Proxy
                 session.EugenID = u0.EugenID;
                 session.Name = u0.Name;
             }
-            if(EugenID != -1 && await GlobalManager.GetSession(EugenID,session.game_id) != null)
+            if(EugenID != -1 && await GlobalManager.Instance.GetSession(EugenID,session.game_id) != null)
             {
                 statusCode = (byte)StatusCode.AlreadyInSession;
             }
@@ -36,7 +36,7 @@ namespace EugnetProtocol.TCP.Proxy
             buffer.InsertRange(0,await Writer.WriteBytes("H",buffer.Count));
             Log.Debug($"Packet: c <-");
             if(statusCode == 0x0){
-                await GlobalManager.RegSession(session, session.game_id);
+                await GlobalManager.Instance.RegSession(session, session.game_id);
             }
             await session.Send(buffer);
         }

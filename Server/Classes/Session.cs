@@ -36,7 +36,7 @@ public class Session(Socket socket, SslStream ssl, TCPServer server) : IDisposab
             currentRoom = null;
         }
         channels.Clear();
-        _ = Task.Run(() => GlobalManager.LogOutSession(this));
+        _ = Task.Run(() => GlobalManager.Instance.LogOutSession(this));
         try
         {
             Ssl?.Dispose();

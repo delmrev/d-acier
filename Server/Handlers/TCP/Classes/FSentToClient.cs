@@ -5,7 +5,6 @@ public enum FClientOpcode : byte
     Stats_3 = 0x33, // same
     Stats_4 = 0x34, // same 
     StatsResult = 0x35, //Server msg: aa
-    Login = 0x41,
     AutoMatchStart = 0x42, // Server msg:BBHLLQ 
     AutoMatchCreated = 0x43, //Server msg: aQaLBBBs
     Unknown = 0x44,
@@ -22,7 +21,7 @@ public enum FClientOpcode : byte
     LobbyInfo = 0xEA, // Server msg: QLB#c
     LobbyPrivateMessage = 0xEB, //Server msg: BBHLLQ
     PublicInformation = 0xEC, //Server msg: LLLLLLLLLLLLLL
-    InviteResponce = 0xED, //Server msg: QQa
+    InviteResponse = 0xED, //Server msg: QQa
     BrausingMessageEnd = 0xEE, //Server msg: H
     BrausingMessage = 0xEF, // Server msg: unknown
     PublicInformationAlt = 0xF1, // Server msg: QQs#v

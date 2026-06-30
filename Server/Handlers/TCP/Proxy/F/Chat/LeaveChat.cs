@@ -11,7 +11,7 @@ namespace EugnetProtocol.TCP.Proxy.F
             FPacket response = new(fPacket.channel, (byte)FClientOpcode.BM_CHAT_LEAVE, buffer);
             await session.Send(await response.ToSend());
             session.currentChat = null;
-            await GlobalManager.LeftChat((string)data[1],session);
+            await ChatManager.Instance.LeftChat((string)data[1],session);
         }
     }
 }

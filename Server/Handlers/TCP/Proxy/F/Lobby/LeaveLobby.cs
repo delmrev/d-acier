@@ -6,8 +6,17 @@ namespace EugnetProtocol.TCP.Proxy.F
     {
         public async Task Process(FPacket packet, Session session)
         {
-            if(session.currentRoom == null)
+            if(session.currentRoom == null )
             {
+                
+                return;
+            }
+            var read = await Reader.ReadBytes(packet.payload,"BBHLLQ");
+            if((long)read[5] != session.currentRoom.ID)
+            {
+                var buf = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.Disconnect, StatusCode.Success, 14754, session.roomKeyID, 46117438, (long)read[5]);
+                FPacket response_2 = new(packet.channel,(byte)FClientOpcode.LobbyMessage, buf);
+                await session.Send(await response_2.ToSend());
                 return;
             }
             var buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.Disconnect, StatusCode.Success, 14754, session.roomKeyID, 46117438, session.currentRoom.ID);
@@ -34,8 +43,21 @@ namespace EugnetProtocol.TCP.Proxy.F
                 session.currentRoom = null;
             } else
             {
-                await GlobalManager.RemoveRoom(session.currentRoom.ID, session.game_id);
+                await LobbyManager.Instance.RemoveRoom(session.currentRoom.ID, session.game_id);
+                session.currentRoom.Dispose();
                 session.currentRoom = null;
+            }
+            if(session.channels.TryGetValue("Relay.1", out int value))
+            {
+                GPacket gPacket = new(value);
+                await session.Send(await gPacket.ToSend());
+                session.channels.Remove("Relay.1");
+            }
+            if(session.channels.TryGetValue("ath", out int value1))
+            {
+                GPacket gPacket = new(value1);
+                await session.Send(await gPacket.ToSend());
+                session.channels.Remove("ath");
             }
         }
     }

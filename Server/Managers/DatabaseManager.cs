@@ -1,4 +1,5 @@
 using Database.Tables;
+using EugnetProtocol.Common.Interfaces;
 using NLog;
 using SQLite;
 namespace Database
@@ -17,6 +18,7 @@ public static class DatabaseManager
             _db = new("Data/database.sqlite3", false);
             await _db.CreateTableAsync<u0>();
             await _db.CreateTableAsync<UserStat>();
+            await _db.CreateTableAsync<ClientInfo>();
         }
         public static async Task<long> CreateAccount(long steamID, int gameID)
         {
@@ -54,6 +56,25 @@ public static class DatabaseManager
                 await _db.InsertAsync(stat);
                 return stat.EugenID;
             }
+        }
+        public static async Task<ClientInfo?> GetClientInfoByEugenID(long EugenID)
+        {
+            var result = await _db.Table<ClientInfo>().FirstOrDefaultAsync(t => t.EugenID == EugenID);
+            if(result is null)
+            {
+                Log.Error("Try to get U0 but dont have account.");
+                return null;
+            }
+            return result;
+        }
+        public static async Task<ClientInfo> CreateClientInfo(long EugenID)
+        {
+            ClientInfo info = new()
+            {
+                EugenID = EugenID
+            };
+            await _db.InsertAsync(info);
+            return info;
         }
         public static async Task<u0?> GetU0(long EugenID)
         {

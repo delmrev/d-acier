@@ -1,11 +1,13 @@
 public enum FServerOpcode : byte
 {
     UPDATE_STATS = 0x34,
+    STOP_AUTOMATCH = 0x45,
+    ADD_AUTOMATCH = 0x47,
     LobbyPrivateMessage = 0xEB,
     CONTINUE = 0xC1,
     FRIEND_COMMAND = 0xC2, // Client- BQ
     KEEP_ALIVE_PACKET = 0xC3,
-    Signal = 0xC4,
+    RELAY_CONTROLMSG = 0xC4,
     CURRENT_STATE = 0xC5,
     CREATE_TEAM = 0xC6,
     FRIEND_TEAM_COMMAND = 0xC7, // 10 state (also Team_Command)
@@ -27,4 +29,6 @@ public enum FServerOpcode : byte
     SEND_LOBBY_INVITATION = 0xED, // QQa
     GET_ROOM_LIST = 0xEF,
     SEND_CHAT_MSG_LOBBY = 0xF1, // F1 - QQs#v
+    BM_FRIEND_GET_EXTERNAL_ID = 0xD5,
+    BM_FRIEND_GET_EUGNET_ID = 0xD6,
 }

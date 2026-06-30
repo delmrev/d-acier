@@ -13,6 +13,7 @@ namespace EugnetProtocol.TCP.Proxy
             _handlers.Add("mms",new MMS());
             _handlers.Add("friend", new Friend());
             _handlers.Add("Relay.1",new Relay());
+            _handlers.Add("Relay.2",new Relay());
             _handlers.Add("ath", new Ath());
         }
         public async Task Process(byte[] data, Session session)

@@ -18,7 +18,7 @@ class Program
             Log.Info("Database has started");
 
             var config = ConfigData.Load();
-            GlobalManager.SetConfigData(config);
+            GlobalManager.Instance.SetConfigData(config);
 
             // Logging config
             var consoleRule = LogManager.Configuration?.LoggingRules
@@ -115,7 +115,7 @@ class Program
 
                 Log.Info("Stopping servers...");
 
-                await GlobalManager.Stop();
+                await GlobalManager.Instance.Stop();
                 httpServer.Dispose();
                 tcpServer.Dispose();
                 httpsServer.Dispose();
