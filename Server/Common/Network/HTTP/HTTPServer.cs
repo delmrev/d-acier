@@ -81,7 +81,7 @@ public class HttpServer : IDisposable
                     if (!await HandlePacket(network, token)) 
                         break;
                 }
-                Log.Info($"{client.RemoteEndPoint} diconected, reason: close connection");
+                Log.Info($"{client.RemoteEndPoint} disconnected, reason: close connection");
             }
             catch (Exception ex)
             {

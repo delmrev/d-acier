@@ -103,12 +103,12 @@ public class TCPServer : IDisposable
                 {
                     await ProcessIncoming(buffer.AsSpan(0, read).ToArray(), session);
                 }
-                Log.Info($"{client.RemoteEndPoint} diconected, reason: close connection");
+                Log.Info($"{client.RemoteEndPoint} disconnected, reason: close connection");
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error handling client {0}", client.RemoteEndPoint);
-                Log.Info($"{client.RemoteEndPoint} diconected, reason: fail to handling");
+                Log.Info($"{client.RemoteEndPoint} disconnected, reason: fail to handling");
             }
             finally
             {

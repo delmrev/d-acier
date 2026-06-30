@@ -56,7 +56,7 @@ public class Writer
                         break;
                     case 's':
                     case 'S':
-                        localBuffer = Encoding.UTF8.GetBytes((string)value[i]);
+                        localBuffer = Encoding.UTF8.GetBytes(value[i].ToString() ?? "-1");
                         length = BitConverter.GetBytes(localBuffer.Length);
                         Array.Reverse(length);
                         buffer.AddRange(length);
@@ -64,7 +64,7 @@ public class Writer
                         break;
 
                     case 'c':
-                        localBuffer = Encoding.UTF8.GetBytes((string)value[i]);
+                        localBuffer = Encoding.UTF8.GetBytes(value[i].ToString() ?? "-1");
                         length = BitConverter.GetBytes((short)localBuffer.Length);
                         Array.Reverse(length);
                         buffer.AddRange(length);
