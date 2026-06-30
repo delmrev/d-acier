@@ -36,10 +36,10 @@ namespace HTTPS.Methods.POST
                         var steamID = values["extuserid"];
                         var nickname = values["nickname"];
                         var gameID = int.Parse(values["eappid"]);
-                        var login = values["email"];
                         var user = await DatabaseManager.GetU0BySteamID(long.Parse(steamID));
                         if(user == null){
                             var EugenID = await DatabaseManager.CreateAccount(long.Parse(steamID),0);
+                            await DatabaseManager.CreateClientInfo(EugenID);
                             if(EugenID == -1)
                             {
                                 response.StatusCode = 500;
@@ -67,7 +67,6 @@ namespace HTTPS.Methods.POST
                                 response.Body = jsonwData.ToString(Formatting.None);
                             }
                             user.Name = nickname;
-                            user.Login = login;
                             DatabaseManager.UpdateData(user);
                             response.StatusCode = 200;
                             response.StatusString = "OK";

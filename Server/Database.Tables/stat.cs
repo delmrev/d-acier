@@ -5,7 +5,7 @@ namespace Database.Tables
     public class UserStat
     {
         [PrimaryKey, AutoIncrement]
-        public int Id { get; set; }
+        public ulong Id { get; set; }
         [Indexed]
         [Column("eugen_id")]
         public long EugenID {get; set;}

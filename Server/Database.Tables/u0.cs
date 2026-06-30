@@ -1,3 +1,4 @@
+using EugnetProtocol.Common.Interfaces;
 using SQLite;
 
 namespace Database.Tables
@@ -7,7 +8,7 @@ namespace Database.Tables
     {
         [PrimaryKey,AutoIncrement]
         [Column("EugenID")]
-        public int EugenID {get; set;}
+        public long EugenID {get; set;}
         [Indexed]
         [Column("SteamID")]
         public long SteamID {get; set;}
@@ -17,10 +18,5 @@ namespace Database.Tables
         public string? Name {get; set;}
         [Column("avatar")]
         public string? Avatar {get; set;}
-        [Indexed]
-        [Column("Login")]
-        public string? Login {get; set;}
-        [Column("Password")]
-        public string? Password {get; set;}
     }
 }
