@@ -17,12 +17,14 @@ namespace EugnetProtocol.TCP.Proxy
             int gameid = (int)data[2];
             if (user is not null)
             {
-                Log.Debug($"1Packet: c ->");
-                if(string.IsNullOrEmpty(user.Password))
+                var clientInfo = await DatabaseManager.GetClientInfoByEugenID(user.EugenID);
+                clientInfo ??= await DatabaseManager.CreateClientInfo(user.EugenID);
+                Log.Debug($"Packet: c ->");
+                if(string.IsNullOrEmpty(clientInfo.Password))
                 {
-                    user.Password = (string)data[4];
+                    clientInfo.Password = (string)data[4];
                     DatabaseManager.UpdateData(user);
-                } else if(user.Password != (string)data[4])
+                } else if(clientInfo.Password != (string)data[4])
                 {
                     statusCode = (byte)StatusCode.IncorrectIdentification;
                     var buf = await Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, -1, (long)0, 60, statusCode, (long)0);
@@ -56,8 +58,9 @@ namespace EugnetProtocol.TCP.Proxy
                     Log.Error("OldConnect: user is null");
                     return;
                 }
+                var clientInfo = await DatabaseManager.CreateClientInfo(newEugid);
                 user.Name = (string)data[3];
-                user.Password = (string)data[4];
+                clientInfo.Password = (string)data[4];
                 DatabaseManager.UpdateData(user);
                 await DatabaseManager.CreateAccount(steamID,gameid);
                 session.game_id = gameid;

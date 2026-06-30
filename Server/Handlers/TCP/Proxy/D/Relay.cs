@@ -6,12 +6,12 @@ namespace EugnetProtocol.TCP.Proxy.D
     {
         public async Task Process(DPacket dPacket, Session session)
         {
-            var buffer = await Writer.WriteBytes("BII", (byte)'d', dPacket.channel, 3);
+            var buffer = await Writer.WriteBytes("BII", (byte)'d', dPacket.channel, dPacket.channel);
             buffer.InsertRange(0,await Writer.WriteBytes("H",buffer.Count));
             await session.Send(buffer);
-            if (!session.channels.Contains(3))
+            if (!session.channels.TryAdd(dPacket.command, dPacket.channel))
             {
-                session.channels.Add(3);
+                session.channels[dPacket.command] = dPacket.channel;
             }
         }
     }
