@@ -33,11 +33,12 @@ namespace EugnetProtocol.TCP.Proxy.F
             } else
             {
                 if(int.Parse(page) == 1){
-                    var list = await GlobalManager.GetRoomList(session.game_id);
-                    var buf = await Writer.WriteBytes("H", list.Count);
+                    var list = await LobbyManager.Instance.GetRoomList(session.game_id);
+                    var new_list = list.Where(r => r.Value.Is_public).ToList();
+                    var buf = await Writer.WriteBytes("H", new_list.Count);
                     response = new(fPacket.channel,(byte)FClientOpcode.Brausing,buf);
                     await session.Send(await response.ToSend());
-                    foreach(var room in list)
+                    foreach(var room in new_list)
                     {
                         List<byte> pack = [];
                         buf = await Writer.WriteBytes("HQH", searchid, room.Key, 2);
@@ -45,7 +46,6 @@ namespace EugnetProtocol.TCP.Proxy.F
                         int[] indexeses = [1, 0, 4, 3, 7, 8, 264, 256, 2, 265, 260, 259, 261, 258, 263, 268, 267, 262, 257];
                         for (int i = 0; i < indexeses.Length; i++)
                         {
-
                             try
                             {
                                 var option = await Writer.WriteBytes("Ic",indexeses[i],room.Value.RoomSettings[indexeses[i]]);
@@ -67,7 +67,7 @@ namespace EugnetProtocol.TCP.Proxy.F
                     response = new(fPacket.channel, (byte)FClientOpcode.Brausing, buf);
                     await session.Send(await response.ToSend()); 
                 }
-                var buffer = await Writer.WriteBytes("LLLLLLLLLLLLLL", await GlobalManager.GetPlayersCount(session.game_id), await GlobalManager.GetRoomsCount(session.game_id), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                var buffer = await Writer.WriteBytes("LLLLLLLLLLLLLL", await GlobalManager.Instance.GetPlayersCount(session.game_id), 0,await AutomatchManager.Instance.GetAutomatchPlayerCount(), 389, 255, await LobbyManager.Instance.GetRoomsCount(session.game_id), 0, await AutomatchManager.Instance.GetAutomatchPlayerCount(), 0, 0, 0, 0, 0, 0);
                 response = new(fPacket.channel, (byte)FClientOpcode.PublicInformation, buffer);
                 await session.Send(await response.ToSend()); 
             }

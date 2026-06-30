@@ -21,6 +21,15 @@ namespace EugnetProtocol.TCP.Proxy.F
             }
             int id = (int)values[1];
             string value = (string)values[3];
+            switch (id)
+            {
+                case 4:
+                    session.currentRoom.Is_public = int.Parse((string)values[3]) == 0;
+                break;
+                case 7:
+                    // is running?
+                break;
+            }
             if (!session.currentRoom.RoomSettings.TryAdd(id, value))
             {
                 if(value == session.currentRoom.RoomSettings[id])
