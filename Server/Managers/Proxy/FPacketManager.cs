@@ -33,6 +33,8 @@ namespace EugnetProtocol.TCP.Proxy
             _handlers.Add((byte)FServerOpcode.LOBBY_MSG, new LobbyInfoMsg());
             _handlers.Add((byte)FServerOpcode.BM_FRIEND_GET_EXTERNAL_ID, new GetFriendExternalID());
             _handlers.Add((byte)FServerOpcode.BM_FRIEND_GET_EUGNET_ID, new GetFriendEugenID());
+            _handlers.Add((byte)FServerOpcode.ADD_AUTOMATCH, new StartAutomatch());
+            _handlers.Add((byte)FServerOpcode.STOP_AUTOMATCH, new StopAutomatch());
             var keepAliveHandler = new Keep_Alive();
             _handlers.Add((byte)FServerOpcode.KEEP_ALIVE_PACKET, keepAliveHandler);
             _handlers.Add((byte)FServerOpcode.KEEP_ALIVE_PACKET_2, keepAliveHandler);
