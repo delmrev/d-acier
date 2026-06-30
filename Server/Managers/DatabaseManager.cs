@@ -133,6 +133,23 @@ public static class DatabaseManager
             }
             
         }
+        public static async Task<int> GetEloCount(int gameID)
+        {
+            var result = await _db.Table<UserStat>()
+            .Where(t => t.GameID == gameID && t.Key == "ELO")
+            .CountAsync();
+            return result;
+        }
+        public static async Task<List<UserStat>> GetELOList(int gameID, int startIndex, int count)
+        {
+            var result = await _db.Table<UserStat>()
+            .Where(t => t.GameID == gameID && t.Key == "ELO")
+            .OrderByDescending(t => t.Value)
+            .Skip(startIndex)
+            .Take(count)
+            .ToListAsync();
+            return result;
+        }
         public static async Task Stop()
         {
             Log.Info("Stopping database...");

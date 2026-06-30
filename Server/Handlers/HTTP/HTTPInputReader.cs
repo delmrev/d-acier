@@ -57,7 +57,7 @@ public static class HTTPInputReader
                     return;
                 }
                 Log.Debug($"HTTP GET request : {request.RequestURL}");
-                var arguments = request.RequestURL.Split(['_','\\','/'],StringSplitOptions.RemoveEmptyEntries);
+                var arguments = request.RequestURL.Split(['_','\\','/','?','&','='],StringSplitOptions.RemoveEmptyEntries);
                 switch (arguments[0])
                 {
                     case "u0":
@@ -82,6 +82,12 @@ public static class HTTPInputReader
                             ConfigureConfirmJSONResponse(ref response);
                             response.Body = Ustat.ProcessGETUStat(EugenID,game_id).Result;
                         }
+                    break;
+                    case "design":
+                        response.Body = Design.Process(arguments).Result;
+                        response.StatusCode = 200;
+                        response.StatusString = "OK";
+                        response.ContentType = "application/json";
                     break;
                     case "motd":
                         response.StatusCode = 403;
