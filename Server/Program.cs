@@ -19,7 +19,8 @@ class Program
 
             var config = ConfigData.Load();
             GlobalManager.Instance.SetConfigData(config);
-
+            AutomatchManager.Instance.config = config;
+            
             // Logging config
             var consoleRule = LogManager.Configuration?.LoggingRules
                 .FirstOrDefault(r => r.Targets.Any(t => t.Name == "console"));

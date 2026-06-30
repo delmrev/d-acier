@@ -3,9 +3,10 @@ using NLog;
 
 public class AutomatchManager
 {
+    public ConfigData config;
+    public static AutomatchManager Instance => _instance;
     private static readonly Logger Log = LogManager.GetCurrentClassLogger();
     private static readonly AutomatchManager _instance = new();
-    public static AutomatchManager Instance => _instance;
     private static readonly Dictionary<int,List<Session>> automatch_list = new();
     private readonly object locker = new();
     public async Task AddToAutoMatch(Session session) {
@@ -52,7 +53,8 @@ public class AutomatchManager
         await host.Send(await response.ToSend()); 
         await user.Send(await response.ToSend()); 
         //host
-        string map = new JObject(new JProperty("scenario","_3x2_West_Brest_LD_1v1")).ToString(Newtonsoft.Json.Formatting.None);
+        string randomMap = config.Automatch.Maps[Random.Shared.Next(0, config.Automatch.Maps.Length)];
+        string map = new JObject(new JProperty("scenario",randomMap)).ToString(Newtonsoft.Json.Formatting.None);
         buffer = await Writer.WriteBytes("aQaLBBBs", true, new_lobby.ID, true, 0,0x2, 0x1, 0x0, map);
         response = new(1,(byte)FClientOpcode.AutoMatchCreated,buffer);
         await host.Send(await response.ToSend());

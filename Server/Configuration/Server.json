@@ -11,5 +11,12 @@
     },
     "SSL": {
         "Certificate": "tm.eugnet.com.pfx"
+    },
+    // You can add any map
+    "Automatch": {
+        "Maps": [
+            "_3x2_West_Brest_LD_1v1",
+            "_2x2_Shchedrin_LD_1v1"
+        ]
     }
 }
