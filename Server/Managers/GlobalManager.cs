@@ -51,7 +51,7 @@ public class GlobalManager
             for(int i = 0; i < maps.Value.Count; i++)
             {
                 foreach(var list in maps.Value){
-                    list.Value.Dispose();
+                    await list.Value.DisposeAsync();
                 }
             }
             Log.Info("Server stopped. All users disconnected");

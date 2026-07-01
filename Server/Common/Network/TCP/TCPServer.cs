@@ -112,7 +112,10 @@ public class TCPServer : IDisposable
             }
             finally
             {
-                session?.Dispose();
+                if (session != null)
+                {
+                    await session.DisposeAsync();
+                }
                 ssl?.Dispose();
                 client?.Close();
                 client?.Dispose();
@@ -140,7 +143,7 @@ public class TCPServer : IDisposable
             Log.Error(ex, "Error processing incoming packet");
             if (session!=null && (session.Socket == null || session.Ssl == null || !session.Ssl.CanRead || !session.Socket.Connected))
             {
-                session?.Dispose();
+                await session.DisposeAsync();
             }
         }
     }
@@ -149,6 +152,11 @@ public class TCPServer : IDisposable
     {
         try
         {
+            if (stream == null || !stream.CanWrite)
+            {
+                Log.Warn("Cannot write to a null socket");
+                return;
+            }
             Log.Debug("Outgoing packet ({0} bytes):\n{1}", packet.Length, HexDump.Dump(packet));
             await stream.WriteAsync(packet);
         }

@@ -2,7 +2,7 @@ using System.Net.Security;
 using System.Net.Sockets;
 using EugnetProtocol.TCP.Proxy.F;
 
-public class Session(Socket socket, SslStream ssl, TCPServer server) : IDisposable
+public class Session(Socket socket, SslStream ssl, TCPServer server) : IAsyncDisposable
 {
     private bool _disposed = false;
     private readonly object _disposalLock = new();
@@ -19,7 +19,7 @@ public class Session(Socket socket, SslStream ssl, TCPServer server) : IDisposab
     public int unk_1;
     public int unk_2;
     public int game_id;
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         lock (_disposalLock)
         {
@@ -32,11 +32,11 @@ public class Session(Socket socket, SslStream ssl, TCPServer server) : IDisposab
         if(currentRoom != null){
             LeaveLobby lobby = new();
             FPacket fPacket = new(1,0x00,Writer.WriteBytes("BBHLLQ",0x0,0x0,0,0,0,currentRoom.ID).Result);
-            _ = Task.Run(() => lobby.Process(fPacket, this));
+            await lobby.Process(fPacket, this);
             currentRoom = null;
         }
         channels.Clear();
-        _ = Task.Run(() => GlobalManager.Instance.LogOutSession(this));
+        await GlobalManager.Instance.LogOutSession(this);
         try
         {
             Ssl?.Dispose();

@@ -9,7 +9,7 @@ namespace EugnetProtocol.TCP.Proxy
         public async Task Process(byte[] data, Session session)
         {
             var read = await Reader.ReadBytes(data,"BI");
-            if((int)read[1] == 0)
+            if((int)read[1] == 1)
             {
                 session.channels.Remove("mms");
                 foreach(var value in session.channels)
