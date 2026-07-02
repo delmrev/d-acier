@@ -140,12 +140,12 @@ public static class DatabaseManager
             .CountAsync();
             return result;
         }
-        public static async Task<List<UserStat>> GetELOList(int gameID, int startIndex, int count)
+        public static async Task<List<UserStat>> GetELOList(int gameID, int offset, int count)
         {
             var result = await _db.Table<UserStat>()
             .Where(t => t.GameID == gameID && t.Key == "ELO")
             .OrderByDescending(t => t.Value)
-            .Skip(startIndex)
+            .Skip(offset)
             .Take(count)
             .ToListAsync();
             return result;
