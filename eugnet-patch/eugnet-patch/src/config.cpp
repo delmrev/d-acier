@@ -110,6 +110,8 @@ void InitConfig(const std::string& path)
     config.port_map[8080]  = to_int(server.get("eugnet-http-alt"));
     config.port_map[443]   = to_int(server.get("eugnet-http-secure"));
     config.port_map[3478]  = to_int(server.get("eugnet-stun"));
+    config.port_map[10000] = to_int(server.get("old-eugnet-tcp"));
+    config.port_map[10001] = to_int(server.get("old-eugnet-tcp-alt"));
 
     ValidatePort(config.port_map[21000], "server.eugnet-tcp");
     ValidatePort(config.port_map[21001], "server.eugnet-tcp-alt");
@@ -117,6 +119,8 @@ void InitConfig(const std::string& path)
     ValidatePort(config.port_map[8080],  "server.eugnet-http-alt");
     ValidatePort(config.port_map[443],   "server.eugnet-http-secure");
     ValidatePort(config.port_map[3478],  "server.eugnet-stun");
+    ValidatePort(config.port_map[10000],   "server.old-eugnet-tcp");
+    ValidatePort(config.port_map[10001],  "server.old-eugnet-tcp-alt");
 
     config.redirect_enabled = true;
 }
