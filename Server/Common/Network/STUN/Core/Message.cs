@@ -1,5 +1,4 @@
-﻿// Code from https://github.com/seanmcelroy/stungun
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
@@ -8,8 +7,6 @@ namespace stungun.common.core
 {
     public struct Message
     {
-        private static readonly RNGCryptoServiceProvider RNG = new RNGCryptoServiceProvider();
-
         public MessageHeader Header;
 
         public IReadOnlyList<MessageAttribute>? Attributes;
@@ -19,8 +16,7 @@ namespace stungun.common.core
             byte[] transactionId;
             if (customTransactionId == null)
             {
-                transactionId = new byte[12];
-                RNG.GetBytes(transactionId);
+                transactionId = RandomNumberGenerator.GetBytes(12);
             }
             else
             {
@@ -47,7 +43,7 @@ namespace stungun.common.core
 
         public static Message Parse(ReadOnlySpan<byte> bytes)
         {
-            if (bytes == null)
+            if (bytes.IsEmpty)
                 throw new ArgumentNullException(nameof(bytes));
             if (bytes.Length < 20)
                 throw new ArgumentOutOfRangeException(nameof(bytes), "Messages must be at least 20 bytes long");
@@ -57,7 +53,7 @@ namespace stungun.common.core
             var ret = new Message
             {
                 Header = header,
-                Attributes = bytes.Length > 20 ? MessageAttribute.ParseList(bytes.Slice(20).ToArray(), header.TransactionId).ToList() : null
+                Attributes = bytes.Length > 20 ? MessageAttribute.ParseList(bytes[20..].ToArray(), header.TransactionId).ToList() : null
             };
 
             return ret;
@@ -65,12 +61,12 @@ namespace stungun.common.core
 
         public void PrintDebug()
         {
-            this.Header.PrintDebug();
-            if (this.Attributes != null)
-                foreach (var attr in this.Attributes)
+            Header.PrintDebug();
+            if (Attributes != null)
+                foreach (var attr in Attributes)
                     attr.PrintDebug();
         }
 
-        public override string ToString() => $"{Enum.GetName(typeof(MessageType), Header.Type)}";
+        public override readonly string ToString() => $"{Enum.GetName(Header.Type)}";
     }
 }

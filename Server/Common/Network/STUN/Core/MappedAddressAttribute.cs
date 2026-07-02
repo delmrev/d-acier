@@ -1,4 +1,3 @@
-// Code from https://github.com/seanmcelroy/stungun
 namespace stungun.common.core
 {
     public class MappedAddressAttribute : AddressAttribute

@@ -1,4 +1,3 @@
-// Code from https://github.com/seanmcelroy/stungun
 using System;
 
 namespace stungun.common.core

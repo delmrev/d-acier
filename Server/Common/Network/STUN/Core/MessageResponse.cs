@@ -1,5 +1,4 @@
-﻿// Code from https://github.com/seanmcelroy/stungun
-using System.Net;
+﻿using System.Net;
 
 namespace stungun.common.core
 {
