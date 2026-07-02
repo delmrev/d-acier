@@ -18,21 +18,24 @@ public class TCPServer : IDisposable
     private ProxyManager _proxyManager = new();
     private bool _isStarted;
     private readonly CancellationTokenSource _cts;
+    private ConfigData _config;
 
-    public TCPServer(string addres, int port, X509Certificate2 certificate)
+    public TCPServer(ConfigData config, X509Certificate2 certificate)
     {
         _cert = certificate;
-        Address = addres;
-        Port = port;
-        EndPoint = new IPEndPoint(IPAddress.Parse(addres), port);
+        _config = config;
+        Address = config.Server.Address;
+        Port = config.Server.TCP;
+        EndPoint = new IPEndPoint(IPAddress.Parse(config.Server.Address), config.Server.TCP);
         _cts = new CancellationTokenSource();
     }
 
-    public TCPServer(string address, int port, EndPoint endPoint, X509Certificate2 certificate)
+    public TCPServer(ConfigData config, EndPoint endPoint, X509Certificate2 certificate)
     {
         _cert = certificate;
-        Address = address;
-        Port = port;
+        _config = config;
+        Address = config.Server.Address;
+        Port = config.Server.TCP;
         EndPoint = endPoint;
         _cts = new CancellationTokenSource();
     }
@@ -99,7 +102,7 @@ public class TCPServer : IDisposable
                 byte[] buffer = new byte[4096];
                 int read;
 
-                while (ssl.CanRead && (read = await ssl.ReadAsync(buffer, 0, buffer.Length, token)) > 0 && !_cts.IsCancellationRequested)
+                while (ssl.CanRead && (read = await ssl.ReadAsync(buffer, token)) > 0 && !_cts.IsCancellationRequested)
                 {
                     await ProcessIncoming(buffer.AsSpan(0, read).ToArray(), session);
                 }
@@ -134,7 +137,10 @@ public class TCPServer : IDisposable
             {
                 ushort length = Reader.ReadInt16Be(reader);
                 var body = reader.ReadBytes(length);
-                Log.Debug("Incoming packet ({0} bytes):\n{1}", length, HexDump.Dump(body));
+                if (_config.Logging.EnableDebug)
+                {
+                    Log.Debug("Incoming packet ({0} bytes):\n{1}", length, HexDump.Dump(body));
+                }
                 await _proxyManager.Handle(body, session);
             }
         }
@@ -157,7 +163,10 @@ public class TCPServer : IDisposable
                 Log.Warn("Cannot write to a null socket");
                 return;
             }
-            Log.Debug("Outgoing packet ({0} bytes):\n{1}", packet.Length, HexDump.Dump(packet));
+            if (_config.Logging.EnableDebug)
+            {
+                Log.Debug("Outgoing packet ({0} bytes):\n{1}", packet.Length, HexDump.Dump(packet));
+            }
             await stream.WriteAsync(packet);
         }
         catch (Exception ex)
@@ -178,7 +187,10 @@ public class TCPServer : IDisposable
         _cts?.Dispose();
     }
 
-    public void Dispose() => Stop();
+    public void Dispose(){
+        Stop();
+        GC.SuppressFinalize(this);
+    }
 
     public async Task Restart()
     {

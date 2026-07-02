@@ -1,3 +1,4 @@
+using System.Text;
 using HTTPS.Methods.POST;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -7,7 +8,7 @@ public static class HTTPSInputReader
 {
     private static readonly Logger Log = LogManager.GetCurrentClassLogger();
 
-    public static async Task ReadTheInputHTTP(HTTPRequestOptions request, HTTPResponseOptions response)
+    public static async Task ReadTheInputHTTPS(HTTPRequestOptions request, HTTPResponseOptions response)
     {
         try
         {
@@ -22,10 +23,9 @@ public static class HTTPSInputReader
                         response.StatusCode = 404;
                         response.StatusString = "Not found";
                         Log.Warn($"Not found the method: {request.RequestURL}");
-                    break;
+                        break;
                 }
             }
-            
         }
         catch (Exception ex)
         {
@@ -35,49 +35,81 @@ public static class HTTPSInputReader
         }
     }
 
-    public static void ConfigureResponseJson(ref HTTPResponseOptions response)
+    public static void ConfigureResponseJson(HTTPResponseOptions response)
     {
         response.StatusCode = 200;
         response.ContentType = "application/json";
         JObject jsonData = new(new JProperty("result", "OK"));
         response.Body = jsonData.ToString(Formatting.None);
     }
-    public static Dictionary<string, string>? ParseMultipartFormData(string body,string boundary)
+    public static Dictionary<string, string> ParseMultipartFormData(byte[]? bodyBytes, string boundary)
     {
-        if(body is null)
+        var values = new Dictionary<string, string>();
+        if (bodyBytes == null || bodyBytes.Length == 0) return values;
+
+        byte[] boundaryBytes = Encoding.UTF8.GetBytes("--" + boundary);
+        ReadOnlySpan<byte> span = bodyBytes.AsSpan();
+
+        try
         {
-            return null;
-        }
-        Dictionary<string, string> values = new();
-        body = body.Trim();
-        if (body.EndsWith("--"))
-        {
-            body = body.TrimEnd('-', '\r', '\n');
-        }
-        var blocks = body.Split(boundary, StringSplitOptions.RemoveEmptyEntries);
-        for (int i = 0; i < blocks.Length; i++)
-        {
-            Log.Debug(blocks[i]);
-            var val = blocks[i].Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
-            var index = val[0].IndexOf(';')+1;
-            var keyStr = val[0][index..];
-            var l = keyStr.IndexOf('=')+1;
-            var key = keyStr[l..];
-            key = key.Trim('"');
-            var dataType = val[0][..index];
-            var KeyValueDatatype = dataType.Split(':');
-            KeyValueDatatype[1] = KeyValueDatatype[1].Trim();
-            if (KeyValueDatatype[1].EndsWith(";"))
+            while (true)
             {
-                KeyValueDatatype[1] = KeyValueDatatype[1].TrimEnd(';');
-            }
-            if(KeyValueDatatype[1] == "form-data")
-            {
-                Log.Debug(key);
-                Log.Debug(val[1]);
-                values.Add(key,val[1]);
+                int boundaryIndex = span.IndexOf(boundaryBytes);
+                if (boundaryIndex == -1) break;
+
+                span = span[(boundaryIndex + boundaryBytes.Length)..];
+
+                if (span.Length >= 2 && span[0] == '-' && span[1] == '-')
+                    break;
+
+                if (span.Length >= 2 && span[0] == '\r' && span[1] == '\n')
+                    span = span[2..];
+
+                int headersEnd = span.IndexOf("\r\n\r\n"u8);
+                if (headersEnd == -1) break;
+
+                var headersSpan = span.Slice(0, headersEnd);
+                string headersString = Encoding.UTF8.GetString(headersSpan);
+
+                var dataSpan = span[(headersEnd + 4)..];
+                
+                int nextBoundary = dataSpan.IndexOf(boundaryBytes);
+                if (nextBoundary == -1) break;
+
+                var valueSpan = dataSpan[..nextBoundary];
+                if (valueSpan.Length >= 2 && valueSpan[^2] == '\r' && valueSpan[^1] == '\n')
+                {
+                    valueSpan = valueSpan[..^2];
+                }
+
+                string nameKey = ExtractNameFromHeaders(headersString);
+                
+                if (!string.IsNullOrEmpty(nameKey))
+                {
+                    string valueStr = Encoding.UTF8.GetString(valueSpan);
+                    values[nameKey] = valueStr;
+                    Log.Debug($"Parsed Form Field: {nameKey} = {valueStr}");
+                }
+
+                span = dataSpan; 
             }
         }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error parsing multipart/form-data");
+        }
+
         return values;
+    }
+    private static string ExtractNameFromHeaders(string headers)
+    {
+        int nameIdx = headers.IndexOf("name=\"", StringComparison.OrdinalIgnoreCase);
+        if (nameIdx == -1) return string.Empty;
+        
+        nameIdx += 6;
+        int endIdx = headers.IndexOf('"', nameIdx);
+        if (endIdx == -1) return string.Empty;
+        
+        return headers[nameIdx..endIdx];
     }
 }

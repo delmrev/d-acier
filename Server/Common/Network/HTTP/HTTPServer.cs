@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -11,6 +12,7 @@ public class HttpServer : IDisposable
     public string Address { get; private set; }
     public int Port { get; private set; }
 
+    private const int MaxHeaderSize = 8192;
     private bool IsStarted;
     private CancellationTokenSource? cts;
 
@@ -97,91 +99,160 @@ public class HttpServer : IDisposable
     }
     private async Task<bool> HandlePacket(NetworkStream network, CancellationToken cts)
     {
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(MaxHeaderSize);
         try
         {
-            using MemoryStream stream = new();
+            int totalBytesRead = 0;
+            int headerEndIndex = -1;
+
             while (!cts.IsCancellationRequested)
             {
-                while (true)
+                try
                 {
-                    var readByte = network.ReadByte();
-                    if(readByte == -1)
+                    int read = await network.ReadAsync(buffer.AsMemory(totalBytesRead, buffer.Length - totalBytesRead), cts);
+                    if (read == 0) return false;
+                    
+                    totalBytesRead += read;
+                    
+                    var currentSpan = buffer.AsSpan(0, totalBytesRead);
+                    headerEndIndex = currentSpan.IndexOf("\r\n\r\n"u8);
+                    
+                    if (headerEndIndex != -1) break;
+                    
+                    if (totalBytesRead >= MaxHeaderSize)
                     {
+                        Log.Warn("Request headers exceeded max size limit.");
+                        await SendError(network, 413, "Payload Too Large");
                         return false;
                     }
-                    byte currentByte = (byte)readByte;
-                    stream.WriteByte(currentByte);
-                    string currentData = Encoding.UTF8.GetString(stream.ToArray());
-                    if (currentData.EndsWith("\r\n\r\n")) break;
-                }
-
-                HTTPRequestOptions requestOptions = new();
-                HTTPResponseOptions responceOptions = new();
-               
-                var stringData = Encoding.UTF8.GetString(stream.ToArray());
-                string[] lines = stringData.Split(["\r\n"], StringSplitOptions.RemoveEmptyEntries);
-                var requestline = lines[0];
-                var request = requestline.Split(' ');
-                requestOptions.Method = request[0];
-                requestOptions.RequestURL = request[1];
-                requestOptions.RequestVersion = request[2];
-                responceOptions.RequestVersion = request[2];
-                for (int i = 1; i < lines.Length; i++)
-                {
-                    var index = lines[i].IndexOf(':');
-                    string key = lines[i].Substring(0, index).Trim();
-                    string value = lines[i].Substring(index + 1).Trim();
-                    requestOptions.Headers.Add(key,value);
-                }
-                if(requestOptions.Method == "POST"){
-                    int length = int.Parse(requestOptions.Headers["Content-Length"]);
-                    if(length <= 0)
-                    {
-                        responceOptions.StatusString = "Bad request";
-                        responceOptions.StatusCode = 400;
-                        return true;
-                    }
-                    byte[] bodyBuffer = new byte[length];
-                    int totalRead = 0;
-                    int read = await network.ReadAsync(bodyBuffer, totalRead, length - totalRead, cts); 
-                    requestOptions.Headers.Add("Body",Encoding.UTF8.GetString(bodyBuffer));
-                }
-                HTTPInputReader.ReadTheInputHTTP(requestOptions,ref responceOptions);
-                await SendPacket(network, responceOptions);
-                return true;
+                } catch {}
             }
+
+            if (headerEndIndex == -1) return false;
+
+            HTTPRequestOptions requestOptions = new();
+            HTTPResponseOptions responceOptions = new();
+
+            ParseHeaders(buffer.AsSpan(0, headerEndIndex), requestOptions, responceOptions);
+
+            if (requestOptions.Method == "POST")
+            {
+                if (requestOptions.Headers.TryGetValue("content-length", out var lengthStr) && int.TryParse(lengthStr, out int length) && length > 0)
+                {
+                    byte[] bodyBuffer = new byte[length];
+                    
+                    int headerBytesCount = headerEndIndex + 4; 
+                    int bodyBytesInFirstRead = totalBytesRead - headerBytesCount;
+                    
+                    if (bodyBytesInFirstRead > 0)
+                    {
+                        int bytesToCopy = Math.Min(bodyBytesInFirstRead, length);
+                        buffer.AsSpan(headerBytesCount, bytesToCopy).CopyTo(bodyBuffer);
+                    }
+
+                    int currentBodyRead = Math.Min(bodyBytesInFirstRead, length);
+
+                    while (currentBodyRead < length && !cts.IsCancellationRequested)
+                    {
+                        int read = await network.ReadAsync(bodyBuffer.AsMemory(currentBodyRead, length - currentBodyRead), cts);
+                        if (read == 0) break;
+                        currentBodyRead += read;
+                    }
+                    requestOptions.BodyBytes = bodyBuffer;
+                }
+                else
+                {
+                    await SendError(network, 400, "Bad Request");
+                    return true;
+                }
+            }
+
+            await HTTPInputReader.ReadTheInputHTTP(requestOptions, responceOptions);
+            await SendPacket(network, responceOptions);
+            return true;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error processing incoming packet");
             return false;
         }
-        return true;
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
+    private void ParseHeaders(ReadOnlySpan<byte> headersSpan, HTTPRequestOptions req, HTTPResponseOptions res)
+    {
+        int firstLineEnd = headersSpan.IndexOf("\r\n"u8);
+        if (firstLineEnd == -1) firstLineEnd = headersSpan.Length;
+
+        var firstLine = Encoding.UTF8.GetString(headersSpan[..firstLineEnd]);
+        var requestParts = firstLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (requestParts.Length >= 3)
+        {
+            req.Method = requestParts[0];
+            req.RequestURL = requestParts[1];
+            req.RequestVersion = requestParts[2];
+            res.RequestVersion = requestParts[2];
+        }
+
+        headersSpan = headersSpan[Math.Min(headersSpan.Length, firstLineEnd + 2)..];
+        
+        while (headersSpan.Length > 0)
+        {
+            int lineEnd = headersSpan.IndexOf("\r\n"u8);
+            ReadOnlySpan<byte> lineSpan = lineEnd == -1 ? headersSpan : headersSpan[..lineEnd];
+
+            int colonIndex = lineSpan.IndexOf((byte)':');
+            if (colonIndex > 0)
+            {
+                var keySpan = lineSpan[..colonIndex];
+                var valueSpan = lineSpan[(colonIndex + 1)..];
+
+                string key = Encoding.UTF8.GetString(keySpan).Trim().ToLowerInvariant();
+                string value = Encoding.UTF8.GetString(valueSpan).Trim();
+                req.Headers[key] = value;
+            }
+
+            if (lineEnd == -1) break;
+            headersSpan = headersSpan[(lineEnd + 2)..];
+        }
+    }
+    private async Task SendError(NetworkStream stream, int code, string message)
+    {
+        var response = new HTTPResponseOptions { StatusCode = code, StatusString = message, RequestVersion = "HTTP/1.1" };
+        await SendPacket(stream, response);
     }
     public async Task SendPacket(NetworkStream stream, HTTPResponseOptions options)
     {
         try
         {
             DateTime now = DateTime.UtcNow;
-            List<byte> packet = new();
-            var httpString = $"{options.RequestVersion} {options.StatusCode} {options.StatusString}\r\n" + $"Date: {now:R}\r\n";
-            if(options.Body is not null && options.Body != "")
+            
+            var headerBuilder = new StringBuilder();
+            headerBuilder.Append($"{options.RequestVersion} {options.StatusCode} {options.StatusString}\r\n");
+            headerBuilder.Append($"Date: {now:R}\r\n");
+
+            byte[]? bodyBytes = null;
+            if (!string.IsNullOrEmpty(options.Body))
             {
-                var byteBody = Encoding.UTF8.GetBytes(options.Body);
-                httpString += $"Content-Type: {options.ContentType}\r\n";
-                httpString += $"Content-Length: {byteBody.Length}\r\n";
-                httpString += "Connection: keep-alive\r\n";
-                httpString += "\r\n";
-                packet.AddRange(Encoding.UTF8.GetBytes(httpString));
-                packet.AddRange(byteBody);
-            } else
-            {
-                httpString += "Connection: keep-alive\r\n";
-                httpString += "\r\n";
-                packet.AddRange(Encoding.UTF8.GetBytes(httpString));
+                bodyBytes = Encoding.UTF8.GetBytes(options.Body);
+                headerBuilder.Append($"Content-Type: {options.ContentType}\r\n");
+                headerBuilder.Append($"Content-Length: {bodyBytes.Length}\r\n");
             }
-            Log.Debug("Outgoing packet ({0} bytes):\n{1}", packet.Count, HexDump.Dump(packet.ToArray()));
-            await stream.WriteAsync(packet.ToArray());
+
+            headerBuilder.Append("Connection: keep-alive\r\n\r\n");
+
+            byte[] headerBytes = Encoding.UTF8.GetBytes(headerBuilder.ToString());
+            await stream.WriteAsync(headerBytes);
+
+            if (bodyBytes != null)
+            {
+                await stream.WriteAsync(bodyBytes);
+            }
+
+            Log.Debug($"Response sent: {options.StatusCode} {options.StatusString}");
         }
         catch (Exception ex)
         {
@@ -200,7 +271,11 @@ public class HttpServer : IDisposable
         cts?.Dispose();
     }
 
-    public void Dispose() => Stop();
+    public void Dispose()
+    {
+        Stop();
+        GC.SuppressFinalize(this);
+    }
 
     public async Task Restart()
     {

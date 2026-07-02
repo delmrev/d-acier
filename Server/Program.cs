@@ -60,8 +60,7 @@ class Program
 
             // Servers
             var tcpServer = new TCPServer(
-                config.Server.Address,
-                config.Server.TCP,
+                config,
                 cert
             );
 

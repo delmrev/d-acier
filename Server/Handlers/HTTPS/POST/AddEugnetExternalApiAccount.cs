@@ -1,3 +1,4 @@
+using System.Text;
 using Database;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -8,76 +9,79 @@ namespace HTTPS.Methods.POST
     public class AddEugnetAccount
     {
         private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+
         public static async Task Process(HTTPRequestOptions request, HTTPResponseOptions response)
         {
-            var ContentTypeHeader = request.Headers["Content-Type"].Trim();
-            if(ContentTypeHeader.Contains(';'))
-                {
-                    Log.Debug(ContentTypeHeader);
-                    var index = ContentTypeHeader.IndexOf(';')+1;
-                    string BoundaryString = ContentTypeHeader[index..].Trim();
-                    index = BoundaryString.IndexOf('=')+1;
-                    if(index == -1)
-                    {
-                        response.StatusCode = 400;
-                        response.StatusString = "Bad request";
-                        return;
-                    }
-                    string boundary = "--";
-                    boundary += BoundaryString[index..];
-                    boundary += "\r\n";
-                    var values = HTTPSInputReader.ParseMultipartFormData(request.Headers["Body"], boundary);
-                    if(values is null)
-                    {
-                        response.StatusCode = 400;
-                        response.StatusString = "Bad request";
-                        return;
-                    }
-                        var steamID = values["extuserid"];
-                        var nickname = values["nickname"];
-                        var gameID = int.Parse(values["eappid"]);
-                        var user = await DatabaseManager.GetU0BySteamID(long.Parse(steamID));
-                        if(user == null){
-                            var EugenID = await DatabaseManager.CreateAccount(long.Parse(steamID),0);
-                            await DatabaseManager.CreateClientInfo(EugenID);
-                            if(EugenID == -1)
-                            {
-                                response.StatusCode = 500;
-                                response.StatusString = "Internal server error";
-                                    return;
-                                }
-                                user = await DatabaseManager.GetU0(EugenID);
-                                if(user is null)
-                                {
-                                    response.StatusCode = 500;
-                                    response.StatusString = "Internal server error";
-                                    return;
-                                }
-                                var data = await DatabaseManager.GetData(user.EugenID,gameID);
-                                if(data.Count == 0)
-                                {
-                                    await DatabaseManager.CreateAccount(user.SteamID,gameID);
-                                }
-                            } else
-                            {
-                                response.StatusCode = 200;
-                                response.StatusString = "OK";
-                                response.ContentType = "application/json";
-                                JObject jsonwData = new(new JProperty("extapi-request-failed"));
-                                response.Body = jsonwData.ToString(Formatting.None);
-                            }
-                            user.Name = nickname;
-                            DatabaseManager.UpdateData(user);
-                            response.StatusCode = 200;
-                            response.StatusString = "OK";
-                            response.ContentType = "application/json";
-                            JObject jsonData = new(new JProperty("result", "OK"),
-                            new JProperty("mmsid", user.EugenID));
-                            response.Body = jsonData.ToString(Formatting.None);
-                        } else
-                        {
-                            Log.Error("Dont have boundary in /api/v1/AddEugnetExternalApiAccount");
-                        }
+            if (!request.Headers.TryGetValue("content-type", out var contentType) || !contentType.Contains("boundary="))
+            {
+                Log.Warn("Missing or invalid Content-Type header");
+                response.StatusCode = 400;
+                response.StatusString = "Bad Request";
+                return;
+            }
+
+            string boundary = contentType.Split("boundary=")[1].Trim();
+
+            var values = HTTPSInputReader.ParseMultipartFormData(request.BodyBytes, boundary);
+
+            if (values == null || !values.TryGetValue("extuserid", out string? value) || !values.TryGetValue("nickname", out string? nickname) || !values.TryGetValue("eappid", out string? value1))
+            {
+                Log.Warn("Invalid multipart form data");
+                response.StatusCode = 400;
+                response.StatusString = "Bad Request";
+                return;
+            }
+
+            if (!long.TryParse(value, out long steamID) || !int.TryParse(value1, out int gameID))
+            {
+                response.StatusCode = 400;
+                response.StatusString = "Invalid parameter format";
+                return;
+            }
+
+            var user = await DatabaseManager.GetU0BySteamID(steamID);
+
+            if (user != null)
+            {
+                Log.Info($"User {steamID} already exists, returning error.");
+                response.StatusCode = 200;
+                response.ContentType = "application/json";
+                response.Body = new JObject(new JProperty("result", "extapi-request-failed")).ToString(Formatting.None);
+                return;
+            }
+
+            long eugenID = await DatabaseManager.CreateAccount(steamID, 0);
+            if (eugenID == -1)
+            {
+                response.StatusCode = 500;
+                response.StatusString = "Internal Server Error";
+                return;
+            }
+
+            await DatabaseManager.CreateClientInfo(eugenID);
+
+            var data = await DatabaseManager.GetData(eugenID, gameID);
+            if (data.Count == 0)
+            {
+                await DatabaseManager.CreateAccount(steamID, gameID);
+            }
+
+            user = await DatabaseManager.GetU0(eugenID);
+            if (user != null)
+            {
+                user.Name = nickname;
+                await DatabaseManager.UpdateData(user);
+            }
+
+            response.StatusCode = 200;
+            response.ContentType = "application/json";
+            var jsonResponse = new JObject(
+                new JProperty("result", "OK"),
+                new JProperty("mmsid", eugenID)
+            );
+            response.Body = jsonResponse.ToString(Formatting.None);
+            
+            Log.Info($"Account created successfully for SteamID: {steamID}, EugenID: {eugenID}");
         }
     }
 }

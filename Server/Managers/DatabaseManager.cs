@@ -97,9 +97,9 @@ public static class DatabaseManager
             result = await _db.Table<u0>().FirstOrDefaultAsync(t => t.SteamID == SteamID);
             return result;
         }
-        public static void UpdateData<T>(T data)
+        public static async Task UpdateData<T>(T data)
         {
-            _db.UpdateAsync(data);
+            await _db.UpdateAsync(data);
         }
         public static async Task<Dictionary<string,int>> GetData(long EugenID, int GameID)
         {

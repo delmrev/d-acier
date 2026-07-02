@@ -4,4 +4,5 @@ public class HTTPRequestOptions
     public string? RequestURL;
     public string? RequestVersion;
     public Dictionary<string,string> Headers = new();
+    public byte[] BodyBytes { get; set; } = [];
 }
