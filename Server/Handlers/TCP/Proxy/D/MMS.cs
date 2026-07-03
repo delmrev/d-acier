@@ -38,7 +38,8 @@ namespace EugnetProtocol.TCP.Proxy.D
         }
         private int Get_Game_ID(int EugenAppID) => EugenAppID switch
         {
-            24 => 251060, // Wargame
+            24 => 251060, // Wargame : Red Dragon
+            25 => 572410, // Steel Division : Normandy 44
             27 => 919640, // SD2
             29 => 1611600, // WARNO
             _ => -1

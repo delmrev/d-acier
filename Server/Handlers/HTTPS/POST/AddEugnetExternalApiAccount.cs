@@ -39,27 +39,24 @@ namespace HTTPS.Methods.POST
                 return;
             }
 
+            long eugenID;
             var user = await DatabaseManager.GetU0BySteamID(steamID);
 
-            if (user != null)
+            if (user == null)
             {
-                Log.Info($"User {steamID} already exists, returning error.");
-                response.StatusCode = 200;
-                response.ContentType = "application/json";
-                response.Body = new JObject(new JProperty("result", "extapi-request-failed")).ToString(Formatting.None);
-                return;
-            }
-
-            long eugenID = await DatabaseManager.CreateAccount(steamID, 0);
-            if (eugenID == -1)
+                eugenID = await DatabaseManager.CreateAccount(steamID, 0);
+                if (eugenID == -1)
+                {
+                    response.StatusCode = 500;
+                    response.StatusString = "Internal Server Error";
+                    return;
+                }
+                await DatabaseManager.CreateClientInfo(eugenID);
+            } else
             {
-                response.StatusCode = 500;
-                response.StatusString = "Internal Server Error";
-                return;
+                eugenID = user.EugenID;
             }
-
-            await DatabaseManager.CreateClientInfo(eugenID);
-
+                
             var data = await DatabaseManager.GetData(eugenID, gameID);
             if (data.Count == 0)
             {

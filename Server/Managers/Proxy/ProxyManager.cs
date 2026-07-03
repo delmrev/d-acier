@@ -8,11 +8,12 @@ public class ProxyManager
     private static readonly Logger Log = LogManager.GetCurrentClassLogger();
     public ProxyManager()
     {
-        _handlers.Add((byte)PacketType.OLDCONNECT,new OldConnect());
+        _handlers.Add((byte)PacketType.REDDRAGONLOGIN,new RedDragonLogin());
         _handlers.Add((byte)PacketType.CONNECT,new ConnectMessage());
         _handlers.Add((byte)PacketType.DATA,new FPacketManager());
         _handlers.Add((byte)PacketType.CONFIRM,new DPacketManager());
         _handlers.Add((byte)PacketType.CLOSE_CHANNEL, new CloseChannel());
+        _handlers.Add((byte)PacketType.NORMANDYCONNECT, new NormandyConnect());
     }
     public async Task Handle(byte[] data, Session session)
     {

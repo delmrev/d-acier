@@ -19,6 +19,9 @@ public static class HTTPSInputReader
                     case "/api/v1/AddEugnetExternalApiAccount":
                         await AddEugnetAccount.Process(request, response);
                         break;
+                    case "/api/v1/LinkSteamAuth":
+                        await LinkSteamAuth.Process(request, response);
+                    break;
                     default:
                         response.StatusCode = 404;
                         response.StatusString = "Not found";

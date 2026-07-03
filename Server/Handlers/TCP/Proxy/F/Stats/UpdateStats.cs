@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Text;
 using Database;
@@ -67,31 +68,34 @@ namespace EugnetProtocol.TCP.Proxy.F
             var buffer = await Reader.ReadBytes(reader, "BII");
             var stats = await DatabaseManager.GetU0(session.EugenID);
             Type type = typeof(u0);
+            var propertiesCache = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .ToDictionary(p => p.Name.ToLower(), p => p);
+
             for (int i = 0; i < (int)buffer[1]; i++)
             {
                 var tmp = await Reader.ReadBytes(reader,"SS");
                 if(tmp[0] != null && tmp[0] is string str)
                 {
-                    str = str.Replace("@", "");
-                    var value = type.GetProperty(str);
-                    if(value is null)
+                    str = str.Replace("@", "").ToLower();
+
+                    if(!propertiesCache.TryGetValue(str, out var value))
                     {
                         Log.Error($"Dont exist value: {str}");
                         continue;
                     }
-                    value.SetValue(stats,int.Parse((string)tmp[1]));
+                    value.SetValue(stats, (string)tmp[1]);
                 } else
                 {
                     Log.Error("Empty string!");
                 }
             }
-            DatabaseManager.UpdateData(stats);
+            await DatabaseManager.UpdateData(stats);
             byte[] bytes = new byte[32]; // Well, well, Eugens thanks for #v
-            var fields = type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(f => f.PropertyType == typeof(int) && f.Name != "SteamID" && 
-            f.Name != "Login" && f.Name != "Password" && f.Name != "EugenID");
+            var fields = type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(f => f.PropertyType == typeof(int) && f.Name != "SteamID" && f.Name != "EugenID");
             var buf = await Writer.WriteBytes("QQsQQLL",session.EugenID,-1,"",-1,-1,session.game_id, fields.Count());
             foreach(var field in fields)
             {
+                Log.Debug("S");
                 var strbytes = Encoding.UTF8.GetBytes($"@{field.Name}");
                 for (int i = 0; i < strbytes.Length; i++)
                 {

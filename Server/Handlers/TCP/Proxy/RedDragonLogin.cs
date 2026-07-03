@@ -3,7 +3,7 @@ using EugnetProtocol.Common.Interfaces;
 using NLog;
 namespace EugnetProtocol.TCP.Proxy
 {
-    public class OldConnect : IProxyHandler
+    public class RedDragonLogin : IProxyHandler
     {
         private static readonly Logger Log = LogManager.GetCurrentClassLogger();
         public async Task Process(byte[] IncomeData, Session session) 
@@ -23,7 +23,7 @@ namespace EugnetProtocol.TCP.Proxy
                 if(string.IsNullOrEmpty(clientInfo.Password))
                 {
                     clientInfo.Password = (string)data[4];
-                    DatabaseManager.UpdateData(user);
+                    await DatabaseManager.UpdateData(user);
                 } else if(clientInfo.Password != (string)data[4])
                 {
                     statusCode = (byte)StatusCode.IncorrectIdentification;
@@ -61,7 +61,7 @@ namespace EugnetProtocol.TCP.Proxy
                 var clientInfo = await DatabaseManager.CreateClientInfo(newEugid);
                 user.Name = (string)data[3];
                 clientInfo.Password = (string)data[4];
-                DatabaseManager.UpdateData(user);
+                await DatabaseManager.UpdateData(user);
                 await DatabaseManager.CreateAccount(steamID,gameid);
                 session.game_id = gameid;
                 session.EugenID = newEugid;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using NLog;
 
 namespace stungun.common.core
 {
@@ -16,6 +17,7 @@ namespace stungun.common.core
 
     public class MessageAttribute
     {
+        private static readonly Logger Log = LogManager.GetCurrentClassLogger();
         private byte[]? _byteArray;
 
         public AttributeType Type { get; protected set; }
@@ -190,14 +192,13 @@ namespace stungun.common.core
 
         public static byte[] ToByteArray(MessageAttribute attribute)
         {
-            if (attribute == null)
-                throw new ArgumentNullException(nameof(attribute));
+            ArgumentNullException.ThrowIfNull(attribute);
             if (attribute.Value == null || attribute.Value.Length == 0)
                 throw new ArgumentNullException(nameof(attribute.Value));
             if (attribute.AttributeLength != attribute.Value.Length)
                 throw new ArgumentException($"Attribute {attribute.Type} length {attribute.AttributeLength} did not match attribute value's actual byte array length of {attribute.Value.Length}");
             if ((attribute.Value.Length + 4) % 4 != 0)
-                throw new ArgumentOutOfRangeException($"Attributes must break on a 32-boundary, but type {attribute.Type} was {attribute.Value} bytes long", nameof(attribute));
+                throw new ArgumentOutOfRangeException(nameof(attribute), $"Attributes must break on a 32-boundary, but type {attribute.Type} was {attribute.Value} bytes long");
 
             var ret = new byte[4 + attribute.Value.Length];
             Array.Copy(BitConverter.GetBytes(MessageUtility.SwapBytes((ushort)attribute.Type)), 0, ret, 0, 2);
@@ -208,11 +209,11 @@ namespace stungun.common.core
 
         public void PrintDebug()
         {
-            Console.WriteLine($"| Type = 0x{BitConverter.GetBytes((ushort)Type).Reverse().Select(b => $"{b:x2}").Aggregate((c, n) => c + n)} {(Enum.GetName(typeof(AttributeType), Type) ?? "Unknown").PadRight(16, ' ')}| MsgLen = {AttributeLength.ToString().PadRight(21, ' ')}|");
-            Console.WriteLine($"+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+");
+            Log.Debug($"| Type = 0x{BitConverter.GetBytes((ushort)Type).Reverse().Select(b => $"{b:x2}").Aggregate((c, n) => c + n)} {(Enum.GetName(typeof(AttributeType), Type) ?? "Unknown").PadRight(16, ' ')}| MsgLen = {AttributeLength.ToString().PadRight(21, ' ')}|");
+            Log.Debug($"+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+");
             for (var i = 0; i < AttributeLength / 4 && Value != null; i++)
-                Console.WriteLine($"|                          {Value.Skip(i * 4).Take(4).Select(b => $"{b:x2} ").Reverse().Aggregate((c, n) => c + n).PadRight(37, ' ')}|");
-            Console.WriteLine($"+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+");
+                Log.Debug($"|                          {Value.Skip(i * 4).Take(4).Select(b => $"{b:x2} ").Reverse().Aggregate((c, n) => c + n).PadRight(37, ' ')}|");
+            Log.Debug($"+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+");
         }
 
         public byte[] ToByteArray() => ToByteArray(this);
