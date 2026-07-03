@@ -8,17 +8,18 @@ You can find more in our [Discord](https://discord.gg/UM4CjfqAC)
 
 ## What works
 
+- Automatch
+- Leaderboards
+- Invite code
 - Entering multiplayer menu
-- Adding/removing friends
 - Discover other player lobbies
+- Private matches
 - Join and start the game
 
 ## What doesn't work
 
-- Automatch
-- Leaderboards
 - Invitations
-- Private matches
+- Adding/removing friends
 - Auth on game copies that are not Steam (e.g GOG)
 
 ## Building
@@ -66,7 +67,7 @@ There's simple quick-start guide to run and play. Get the latest [release](https
 4. Register (write any data)
 
 > [!IMPORTANT]
-> Please use only the registration window. Using other windows, such as the login or password recovery windows, will result in errors. For Wargame, use the login window.
+> Please use only the registration window. Using other windows, such as the login or password recovery, won't work. For Wargame or Steel Division: Normandy 44 (Eugen Login), use the login window.
 
 ## Supported games
 
@@ -75,7 +76,7 @@ There's simple quick-start guide to run and play. Get the latest [release](https
 | Steel Division 2 | x64 | Native |
 | Wargame : Red Dragon | x86 | Yes |
 | Warno | x64 | Yes |
-| Steel Division : Normandy 44 | x64 | No |
+| Steel Division : Normandy 44 | x64 | Yes |
 | Wargame : European Escalation | x86 | No |
 | Wargame : Airland Battle | x86 | No |
 
