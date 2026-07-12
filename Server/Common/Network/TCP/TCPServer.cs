@@ -4,6 +4,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Net.Security;
 using System.Security.Authentication;
 using NLog;
+using System.Buffers.Binary;
 
 public class TCPServer : IDisposable
 {
@@ -81,13 +82,17 @@ public class TCPServer : IDisposable
         client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, 20);
         client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, 5);
         client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, 3);
-        using (client)
-        using (var network = new NetworkStream(client, ownsSocket: false))
-        using (var ssl = new SslStream(network, leaveInnerStreamOpen: false))
+        Session? session = null;
+        Stream? stream = null;
+        try
         {
-            Session? session = null;
-            try
+            byte[] peekBuffer = new byte[1];
+            int read = await client.ReceiveAsync(peekBuffer.AsMemory(0, 1), SocketFlags.Peek, _cts.Token);
+            
+            if (read > 0 && peekBuffer[0] == 0x16)
             {
+                var network = new NetworkStream(client, ownsSocket: false);
+                var ssl =  new SslStream(network, leaveInnerStreamOpen: false);
                 var options = new SslServerAuthenticationOptions
                 {
                     EnabledSslProtocols = SslProtocols.None,
@@ -96,65 +101,93 @@ public class TCPServer : IDisposable
                     CertificateRevocationCheckMode = X509RevocationMode.NoCheck
                 };
                 await ssl.AuthenticateAsServerAsync(options, token);
-
-                session = new Session(client, ssl, this);
-
-                byte[] buffer = new byte[4096];
-                int read;
-
-                while (ssl.CanRead && (read = await ssl.ReadAsync(buffer, token)) > 0 && !_cts.IsCancellationRequested)
-                {
-                    await ProcessIncoming(buffer.AsSpan(0, read).ToArray(), session);
-                }
-                Log.Info($"{client.RemoteEndPoint} disconnected, reason: close connection");
+                stream = ssl;
             }
-            catch (Exception ex)
+            else
             {
-                Log.Error(ex, "Error handling client {0}", client.RemoteEndPoint);
-                Log.Info($"{client.RemoteEndPoint} disconnected, reason: fail to handling");
-            }
-            finally
+                stream = new NetworkStream(client, ownsSocket: false);
+            } 
+            if(stream == null)
             {
-                if (session != null)
-                {
-                    await session.DisposeAsync();
-                }
-                ssl?.Dispose();
-                client?.Close();
-                client?.Dispose();
+                throw new ArgumentNullException();
             }
+            session = new Session(client, stream, this);
+
+            byte[] buffer = new byte[4096];
+
+            while (stream.CanRead)
+            {
+                int bytesRead = await stream.ReadAsync(buffer, token);
+                
+                if (bytesRead <= 0) break;
+
+                await ProcessIncoming(buffer.AsMemory(0, bytesRead), session);
+            }
+
+            Log.Info($"{client.RemoteEndPoint} disconnected, reason: close connection");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error handling client {0}", client.RemoteEndPoint);
+            Log.Info($"{client.RemoteEndPoint} disconnected, reason: fail to handling");
+        }
+        finally
+        {
+            if (session != null)
+            {
+                await session.DisposeAsync();
+            }
+            stream?.Dispose();
+            client?.Close();
+            client?.Dispose();
         }
     }
-
-    private async Task ProcessIncoming(byte[] data, Session session)
+    private async Task ProcessIncoming(ReadOnlyMemory<byte> data, Session session)
     {
         try
         {
-            using MemoryStream stream = new(data);
-            using BinaryReader reader = new(stream);
-
-            while (reader.BaseStream.Position < reader.BaseStream.Length)
+            int position = 0;
+            while (position < data.Length)
             {
-                ushort length = Reader.ReadInt16Be(reader);
-                var body = reader.ReadBytes(length);
+                if (position + 2 > data.Length)
+                {
+                    Log.Warn("Not enough length to read data.");
+                    break; 
+                }
+
+                ushort length = BinaryPrimitives.ReadUInt16BigEndian(data.Span.Slice(position, 2));
+                position += 2;
+
+                if (position + length > data.Length)
+                {
+                    Log.Warn("Packet sliced. Waited for {0} byte.", length);
+                    break;
+                }
+
+                ReadOnlyMemory<byte> bodyMemory = data.Slice(position, length);
+                position += length;
+
+                byte[] payload = bodyMemory.ToArray(); 
+                
                 if (_config.Logging.EnableDebug)
                 {
-                    Log.Debug("Incoming packet ({0} bytes):\n{1}", length, HexDump.Dump(body));
+                    Log.Debug("Incoming packet ({0} bytes):\n{1}", length, HexDump.Dump(payload));
                 }
-                await _proxyManager.Handle(body, session);
+
+                await _proxyManager.Handle(payload, session);
             }
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error processing incoming packet");
-            if (session!=null && (session.Socket == null || session.Ssl == null || !session.Ssl.CanRead || !session.Socket.Connected))
+            if (session != null && (session.Socket == null || session.Stream == null || !session.Stream.CanRead || !session.Socket.Connected))
             {
                 await session.DisposeAsync();
             }
         }
     }
 
-    public async Task SendPacket(SslStream stream, byte[] packet)
+    public async Task SendPacket(Stream stream, byte[] packet)
     {
         try
         {

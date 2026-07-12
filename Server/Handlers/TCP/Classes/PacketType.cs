@@ -7,5 +7,5 @@ public enum PacketType : byte
     CONFIRM = 0x64, // d
     DATA = 0x66, // f
     CLOSE_CHANNEL = 0x67, // g
-    EMERGENCY_DISCONNECT = 0x7A // z
+    EuropeanEscalationLogin = 0xE7
 }

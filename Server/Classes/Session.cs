@@ -1,13 +1,12 @@
-using System.Net.Security;
 using System.Net.Sockets;
 using EugnetProtocol.TCP.Proxy.F;
 
-public class Session(Socket socket, SslStream ssl, TCPServer server) : IAsyncDisposable
+public class Session(Socket socket, Stream stream, TCPServer server) : IAsyncDisposable
 {
     private bool _disposed = false;
     private readonly object _disposalLock = new();
     public Socket Socket { get; } = socket;
-    public SslStream Ssl { get; } = ssl;
+    public Stream Stream { get; } = stream;
     public TCPServer Server {get; } = server;
     public string? Name;
     public long EugenID;
@@ -39,7 +38,7 @@ public class Session(Socket socket, SslStream ssl, TCPServer server) : IAsyncDis
         await GlobalManager.Instance.LogOutSession(this);
         try
         {
-            Ssl?.Dispose();
+            Stream?.Dispose();
         } catch {}
         try
         {
@@ -58,10 +57,10 @@ public class Session(Socket socket, SslStream ssl, TCPServer server) : IAsyncDis
     }
     public async Task Send(byte[] data)
     {
-        await Server.SendPacket(Ssl,data);
+        await Server.SendPacket(Stream,data);
     }
     public async Task Send(List<byte> data)
     {
-        await Server.SendPacket(Ssl,[..data]);
+        await Server.SendPacket(Stream,[..data]);
     }
 }

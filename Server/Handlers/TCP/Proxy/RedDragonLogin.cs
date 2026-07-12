@@ -49,13 +49,13 @@ namespace EugnetProtocol.TCP.Proxy
                 Log.Debug($"Packet: c ->");
                 var newEugid = await DatabaseManager.CreateAccount(steamID,0);
                 if(newEugid == -1){
-                    Log.Error("OldLogin: EugenID is -1");
+                    Log.Error("RedDragonLogin: EugenID is -1");
                     return;
                 }
                 user = await DatabaseManager.GetU0(newEugid);
                 if(user is null)
                 {
-                    Log.Error("OldConnect: user is null");
+                    Log.Error("RedDragonLogin: user is null");
                     return;
                 }
                 var clientInfo = await DatabaseManager.CreateClientInfo(newEugid);
