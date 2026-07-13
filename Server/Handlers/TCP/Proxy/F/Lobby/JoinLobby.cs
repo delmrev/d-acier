@@ -10,7 +10,14 @@ namespace EugnetProtocol.TCP.Proxy.F
             FPacket response;
             List<byte> buffer;
             long roomID = (long)data[5];
-            Lobby room = await LobbyManager.Instance.GetRoom(roomID,session.game_id);
+            Lobby? room = await LobbyManager.Instance.GetRoom(roomID,session.game_id);
+            if(room == null)
+            {
+                buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.DisconnectFromMms, StatusCode.NotAvailable, 0, -1, 0, roomID);
+                response = new(fPacket.channel, (byte)FClientOpcode.SystemMessage, buffer);
+                await session.Send(await response.ToSend());
+                return;
+            }
             int place = -1;
             for (int i = 2; i <= int.Parse(room.RoomSettings[2])*2; i+=2)
             {
@@ -36,12 +43,17 @@ namespace EugnetProtocol.TCP.Proxy.F
                 response = new(fPacket.channel,(byte)FClientOpcode.LobbyInfo,buf);
                 await session.Send(await response.ToSend());
             }
-            buffer = await Writer.WriteBytes("BBHQLQ", LobbyCommandsClient.Connect, StatusCode.Success, 1, room.ID, room.Host.roomKeyID, room.Host.EugenID);
-            response = new(fPacket.channel, (byte)FClientOpcode.LobbyMessage, buffer);
-            await session.Send(await response.ToSend());
-            buffer = await Writer.WriteBytes("BBHQLQ", LobbyCommandsClient.Connect, StatusCode.Success, 0, room.ID, session.roomKeyID, session.EugenID);
-            response = new(fPacket.channel, (byte)FClientOpcode.LobbyMessage, buffer);
-            await room.Host.Send(await response.ToSend());
+            foreach(var user in room.Users)
+            {
+                if(user.Value == session)
+                {
+                    continue;
+                }
+                buffer = await Writer.WriteBytes("BBHQLQ", LobbyCommandsClient.Connect, StatusCode.Success, 1, room.ID, user.Key, user.Value.EugenID);
+                response = new(fPacket.channel, (byte)FClientOpcode.LobbyMessage, buffer);
+                await session.Send(await response.ToSend());
+            }
+            
             buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.OnLobbyEntered, StatusCode.Success, 0, -1, 0, room.ID);
             response = new(fPacket.channel, (byte)FClientOpcode.SystemMessage, buffer);
             await session.Send(await response.ToSend());
@@ -54,9 +66,20 @@ namespace EugnetProtocol.TCP.Proxy.F
             buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.LobbyEnterFinished,  StatusCode.Success, 14754, session.roomKeyID, -1, room.ID); // j - 0x6A
             response = new(fPacket.channel, (byte)FClientOpcode.LobbyMessage, buffer);
             await session.Send(await response.ToSend());
-            buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.JoinLobbyFinished, StatusCode.Success, 0, session.roomKeyID, 1, room.ID); 
-            response = new(fPacket.channel, (byte)FClientOpcode.SystemMessage, buffer);
-            await room.Host.Send(await response.ToSend());
+            foreach(var user in room.Users)
+            {
+                if(user.Value == session)
+                {
+                    continue;
+                }
+                buffer = await Writer.WriteBytes("BBHQLQ", LobbyCommandsClient.Connect, StatusCode.Success, 0, room.ID, session.roomKeyID, session.EugenID);
+                response = new(fPacket.channel, (byte)FClientOpcode.LobbyMessage, buffer);
+                await user.Value.Send(await response.ToSend());
+                buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.JoinLobbyFinished, StatusCode.Success, 0, session.roomKeyID, 1, room.ID); 
+                response = new(fPacket.channel, (byte)FClientOpcode.SystemMessage, buffer);
+                await user.Value.Send(await response.ToSend());
+            }
+            
         }
     }
 }
