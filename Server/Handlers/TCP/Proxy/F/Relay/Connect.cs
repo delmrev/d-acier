@@ -5,6 +5,7 @@ namespace EugnetProtocol.TCP.Proxy.F
 {
     public class ConnectStartP2P : IFPacketHandler
     {
+        private ConfigData config = GlobalManager.Instance.Data;
         private static readonly Logger Log = LogManager.GetCurrentClassLogger();
         public async Task Process(FPacket fPacket, Session session)
         {
@@ -13,13 +14,22 @@ namespace EugnetProtocol.TCP.Proxy.F
             {
                 if(session.currentRoom != null)
                 {
-                    var user = session.currentRoom.Users
-                    .Where(r => (long)read.output[0] == r.Value.EugenID)
-                    .Select(r => r.Value)
-                    .FirstOrDefault();
+                    Session? user = null;
+                    long eugid = (long)read.output[0];
+                    foreach (var users in session.currentRoom.Users)
+                    {
+                        if (users.Value.EugenID == eugid)
+                        {
+                            user = users.Value;
+                            break;
+                        }
+                    }
                     if(user != null)
                     {
-                        Log.Info($"Direct TCP connect {session.EugenID} -> {user.EugenID}");
+                        if (config != null && config.Logging.EnableDebug)
+                        {
+                            Log.Info($"Direct TCP connect {session.EugenID} -> {user.EugenID}");
+                        }
                         BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), session.EugenID);
                         await user.Send(await fPacket.ToSend());
                     } else
@@ -48,13 +58,22 @@ namespace EugnetProtocol.TCP.Proxy.F
                     {
                         if(session.currentRoom != null)
                         {
-                            var user = session.currentRoom.Users
-                                .Where(r => (long)read.output[0] == r.Value.EugenID)
-                                .Select(r => r.Value)
-                                .FirstOrDefault();
+                            Session? user = null;
+                            long eugid = (long)read.output[0];
+                            foreach (var users in session.currentRoom.Users)
+                            {
+                                if (users.Value.EugenID == eugid)
+                                {
+                                    user = users.Value;
+                                    break;
+                                }
+                            }
                             if(user != null)
                             {
-                                Log.Info($"STUN_INFO {session.EugenID} -> {user.EugenID}");
+                                if (config != null && config.Logging.EnableDebug)
+                                {
+                                    Log.Info($"STUN_INFO {session.EugenID} -> {user.EugenID}");
+                                }
                                 BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), session.EugenID);
                                 await user.Send(await fPacket.ToSend());
                             } else
@@ -73,13 +92,22 @@ namespace EugnetProtocol.TCP.Proxy.F
                     {
                         if(session.currentRoom != null)
                         {
-                            var user = session.currentRoom.Users
-                            .Where(r => (long)read.output[0] == r.Value.EugenID)
-                            .Select(r => r.Value)
-                            .FirstOrDefault();
+                            Session? user = null;
+                            long eugid = (long)read.output[0];
+                            foreach (var users in session.currentRoom.Users)
+                            {
+                                if (users.Value.EugenID == eugid)
+                                {
+                                    user = users.Value;
+                                    break;
+                                }
+                            }
                             if(user != null)
                             {
-                                Log.Info($"Steam connect {session.EugenID} -> {user.EugenID}");
+                                if (config != null && config.Logging.EnableDebug)
+                                {
+                                    Log.Info($"Steam connect {session.EugenID} -> {user.EugenID}");
+                                }
                                 BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), session.EugenID);
                                 await user.Send(await fPacket.ToSend());
                             } else

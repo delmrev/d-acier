@@ -18,6 +18,7 @@ public class Session(Socket socket, Stream stream, TCPServer server) : IAsyncDis
     public int unk_1;
     public int unk_2;
     public int game_id;
+    public bool isConnectedToRelay = false;
     public async ValueTask DisposeAsync()
     {
         lock (_disposalLock)

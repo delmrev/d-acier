@@ -6,6 +6,7 @@ public class GlobalManager
     private static readonly Logger Log = LogManager.GetCurrentClassLogger();
     private static readonly GlobalManager _instance = new();
     public static GlobalManager Instance => _instance;
+    public ConfigData? Data { get; private set; }
     private static readonly ConcurrentDictionary<int, ConcurrentDictionary<long,Session>> Players = new();
     private static object configDataLocker = new();
     private static ConfigData? Confdata;
@@ -34,6 +35,7 @@ public class GlobalManager
         lock (configDataLocker)
         {
            Confdata = data; 
+           Instance.Data = data;
         }
     }
     

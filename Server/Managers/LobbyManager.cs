@@ -23,9 +23,10 @@ public class LobbyManager
         Rooms.TryAdd(gameid, new());
         return Rooms[gameid].AsReadOnly();
     }
-    public async Task<Lobby> GetRoom(long roomID, int gameid)
+    public async Task<Lobby?> GetRoom(long roomID, int gameid)
     {
-        return Rooms[gameid][roomID];
+        Rooms[gameid].TryGetValue(roomID, out var lobby);
+        return lobby;
     }
     public async Task RemoveRoom(long roomID, int gameid)
     {

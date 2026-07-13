@@ -15,6 +15,7 @@ namespace EugnetProtocol.TCP.Proxy.F
             {
                 foreach(var user in session.currentRoom.Users)
                 {
+                    fPacket.channel = user.Value.channels["Relay.1"];
                     await user.Value.Send(await fPacket.ToSend());
                 }
             }

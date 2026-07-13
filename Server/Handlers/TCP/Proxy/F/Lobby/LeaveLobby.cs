@@ -59,6 +59,7 @@ namespace EugnetProtocol.TCP.Proxy.F
                 await session.Send(await gPacket.ToSend());
                 session.channels.Remove("ath");
             }
+            session.isConnectedToRelay = false;
         }
     }
 }

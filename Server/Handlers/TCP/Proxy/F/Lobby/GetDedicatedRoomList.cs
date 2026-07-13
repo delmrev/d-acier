@@ -15,6 +15,7 @@ namespace EugnetProtocol.TCP.Proxy.F
             await session.Send(await response.ToSend()); 
             response = new(fPacket.channel, (byte)FClientOpcode.BrausingMessageEnd, [0x00, 0x01]);
             await session.Send(await response.ToSend());
+            session.has_EF = false;
         }
     }
 }
