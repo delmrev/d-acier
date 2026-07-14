@@ -21,7 +21,7 @@ namespace EugnetProtocol.TCP.Proxy
             _handlers.Add((byte)FServerOpcode.CHAT_LEAVE, new LeaveChat());
             _handlers.Add((byte)FServerOpcode.CHAT_MSG, new ChatMessage());
             _handlers.Add((byte)FServerOpcode.LobbyPrivateMessage, new LobbyPrivateMSG());
-            _handlers.Add((byte)FServerOpcode.RELAY_CONTROLMSG, new Signal());
+            _handlers.Add((byte)FServerOpcode.RELAY_CONTROLMSG, new RelayControlMessage());
             _handlers.Add((byte)FServerOpcode.BM_FRIEND_MESSAGE, new PrivateMessage());
             _handlers.Add((byte)FServerOpcode.GET_PUBLIC_INFORMATION, new GetPublicInformation());
             _handlers.Add((byte)FServerOpcode.GET_ROOM_LIST, new GetDedicatedRoomList());
