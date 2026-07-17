@@ -16,7 +16,7 @@
         "HTTPKeepAliveRetryCount": 3
     },
     "Logging": {
-        "EnableDebug" : true
+        "EnableDebug" : false
     },
     "SSL": {
         "Certificate": "tm.eugnet.com.pfx"
