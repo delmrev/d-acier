@@ -30,6 +30,14 @@ public class ServerConfig
     public ushort HTTPS { get; set; }
     public ushort STUN { get; set; }
     public ushort TCP { get; set; }
+
+    public int TCPKeepAliveTime {get; set;}
+    public int TCPKeepAliveInterval {get; set;}
+    public int TCPKeepAliveRetryCount {get; set;}
+
+    public int HTTPKeepAliveTime {get; set;}
+    public int HTTPKeepAliveInterval {get; set;}
+    public int HTTPKeepAliveRetryCount {get; set;}
 }
 
 public class LoggingConfig

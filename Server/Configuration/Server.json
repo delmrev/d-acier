@@ -4,10 +4,19 @@
         "HTTP": 8080,
         "HTTPS": 443,
         "STUN": 3478,
-        "TCP": 21001
+        "TCP": 21001,
+
+        // miliseconds
+        "TCPKeepAliveTime": 10000,
+        "TCPKeepAliveInterval": 1000,
+        "TCPKeepAliveRetryCount": 3,
+
+        "HTTPKeepAliveTime": 10000,
+        "HTTPKeepAliveInterval": 1000,
+        "HTTPKeepAliveRetryCount": 3
     },
     "Logging": {
-        "EnableDebug" : false
+        "EnableDebug" : true
     },
     "SSL": {
         "Certificate": "tm.eugnet.com.pfx"

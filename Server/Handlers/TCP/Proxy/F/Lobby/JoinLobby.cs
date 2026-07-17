@@ -13,7 +13,7 @@ namespace EugnetProtocol.TCP.Proxy.F
             Lobby? room = await LobbyManager.Instance.GetRoom(roomID,session.game_id);
             if(room == null)
             {
-                buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.DisconnectFromMms, StatusCode.NotAvailable, 0, -1, 0, roomID);
+                buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.OnLobbyEntered, StatusCode.NotAvailable, 0, -1, 0, roomID);
                 response = new(fPacket.channel, (byte)FClientOpcode.SystemMessage, buffer);
                 await session.Send(await response.ToSend());
                 return;
@@ -29,7 +29,7 @@ namespace EugnetProtocol.TCP.Proxy.F
             }
             if(place == -1)
             {
-                buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.DisconnectFromMms, StatusCode.PendingClientListFull, 0, -1, 0, room.ID);
+                buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.OnLobbyEntered, StatusCode.PendingClientListFull, 0, -1, 0, room.ID);
                 response = new(fPacket.channel, (byte)FClientOpcode.SystemMessage, buffer);
                 await session.Send(await response.ToSend());
                 return;

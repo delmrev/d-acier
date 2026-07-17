@@ -65,13 +65,11 @@ class Program
             );
 
             var httpServer = new HttpServer(
-                config.Server.Address,
-                config.Server.HTTP
+                config
             );
 
             var httpsServer = new HttpsServer(
-                config.Server.Address,
-                config.Server.HTTPS,
+                config,
                 cert
             );
 

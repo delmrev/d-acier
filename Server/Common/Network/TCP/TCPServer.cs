@@ -27,7 +27,7 @@ public class TCPServer : IDisposable
         _config = config;
         Address = config.Server.Address;
         Port = config.Server.TCP;
-        EndPoint = new IPEndPoint(IPAddress.Parse(config.Server.Address), config.Server.TCP);
+        EndPoint = new IPEndPoint(IPAddress.Parse(Address), Port);
         _cts = new CancellationTokenSource();
     }
 
@@ -79,9 +79,9 @@ public class TCPServer : IDisposable
     private async Task HandleClient(Socket client, CancellationToken token)
     {
         client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-        client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, 20);
-        client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, 5);
-        client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, 3);
+        client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, _config.Server.TCPKeepAliveTime);
+        client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, _config.Server.TCPKeepAliveInterval);
+        client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, _config.Server.TCPKeepAliveRetryCount);
         Session? session = null;
         Stream? stream = null;
         try
@@ -111,17 +111,30 @@ public class TCPServer : IDisposable
             {
                 throw new ArgumentNullException();
             }
-            session = new Session(client, stream, this);
+            session = new Session(client, stream);
 
-            byte[] buffer = new byte[4096];
+            byte[] readBuffer = new byte[4096];
+            byte[]? waitingpacket = null;
 
             while (stream.CanRead)
             {
-                int bytesRead = await stream.ReadAsync(buffer, token);
-                
+                int bytesRead = await stream.ReadAsync(readBuffer, token);
                 if (bytesRead <= 0) break;
+                byte[] currentData;
+                
+                if (waitingpacket != null && waitingpacket.Length > 0)
+                {
+                    currentData = new byte[waitingpacket.Length + bytesRead];
+                    Buffer.BlockCopy(waitingpacket, 0, currentData, 0, waitingpacket.Length);
+                    Buffer.BlockCopy(readBuffer, 0, currentData, waitingpacket.Length, bytesRead);
+                }
+                else
+                {
+                    currentData = new byte[bytesRead];
+                    Buffer.BlockCopy(readBuffer, 0, currentData, 0, bytesRead);
+                }
 
-                await ProcessIncoming(buffer.AsMemory(0, bytesRead), session);
+                waitingpacket = await ProcessIncoming(currentData, session);
             }
 
             Log.Info($"{client.RemoteEndPoint} disconnected, reason: close connection");
@@ -142,7 +155,7 @@ public class TCPServer : IDisposable
             client?.Dispose();
         }
     }
-    private async Task ProcessIncoming(ReadOnlyMemory<byte> data, Session session)
+    private async Task<byte[]?> ProcessIncoming(ReadOnlyMemory<byte> data, Session session)
     {
         try
         {
@@ -151,22 +164,16 @@ public class TCPServer : IDisposable
             {
                 if (position + 2 > data.Length)
                 {
-                    Log.Warn("Not enough length to read data.");
-                    break; 
-                }
-
-                ushort length = BinaryPrimitives.ReadUInt16BigEndian(data.Span.Slice(position, 2));
-                position += 2;
-
-                if (position + length > data.Length)
-                {
-                    Log.Warn("Packet sliced. Waited for {0} byte.", length);
                     break;
                 }
-
+                ushort length = BinaryPrimitives.ReadUInt16BigEndian(data.Span.Slice(position, 2));
+                if (position + 2 + length > data.Length)
+                {
+                    break;
+                }
+                position += 2;
                 ReadOnlyMemory<byte> bodyMemory = data.Slice(position, length);
-                position += length;
-
+                position += length; 
                 byte[] payload = bodyMemory.ToArray(); 
                 
                 if (_config.Logging.EnableDebug)
@@ -176,6 +183,12 @@ public class TCPServer : IDisposable
 
                 await _proxyManager.Handle(payload, session);
             }
+
+            if (position < data.Length)
+            {
+                return data[position..].ToArray();
+            }
+            return null;
         }
         catch (Exception ex)
         {
@@ -184,30 +197,9 @@ public class TCPServer : IDisposable
             {
                 await session.DisposeAsync();
             }
+            return null; 
         }
     }
-
-    public async Task SendPacket(Stream stream, byte[] packet)
-    {
-        try
-        {
-            if (stream == null || !stream.CanWrite)
-            {
-                Log.Warn("Cannot write to a null socket");
-                return;
-            }
-            if (_config.Logging.EnableDebug)
-            {
-                Log.Debug("Outgoing packet ({0} bytes):\n{1}", packet.Length, HexDump.Dump(packet));
-            }
-            await stream.WriteAsync(packet);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error sending packet");
-        }
-    }
-
     public void Stop()
     {
         if (!_isStarted) return;

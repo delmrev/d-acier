@@ -31,6 +31,11 @@ namespace EugnetProtocol.TCP.Proxy
             {
                 statusCode = (byte)StatusCode.AlreadyInSession;
             }
+            var stat = await DatabaseManager.GetData(session.EugenID,session.game_id);
+            if(stat.Count == 0)
+            {
+                await DatabaseManager.CreateAccount(steamID,session.game_id);
+            }
             Log.Debug($"Packet: c ->");
             var buffer = await Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, EugenID, (long)0, 60, statusCode, (long)0);
             buffer.InsertRange(0,await Writer.WriteBytes("H",buffer.Count));

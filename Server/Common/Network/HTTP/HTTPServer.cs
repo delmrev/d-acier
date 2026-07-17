@@ -15,19 +15,22 @@ public class HttpServer : IDisposable
     private const int MaxHeaderSize = 8192;
     private bool IsStarted;
     private CancellationTokenSource? cts;
+    private ConfigData _config;
 
-    public HttpServer(string addres, int port)
+    public HttpServer(ConfigData config)
     {
-        Address = addres;
-        Port = port;
-        EndPoint = new IPEndPoint(IPAddress.Parse(addres), port);
+        Address = config.Server.Address;
+        Port = config.Server.HTTP;
+        _config = config;
+        EndPoint = new IPEndPoint(IPAddress.Parse(Address), Port);
     }
 
-    public HttpServer(string address, int port, EndPoint endPoint)
+    public HttpServer(ConfigData config, EndPoint endPoint)
     {
-        Address = address;
-        Port = port;
+        Address = config.Server.Address;
+        Port = config.Server.HTTP;
         EndPoint = endPoint;
+        _config = config;
     }
 
     public async Task Start()
@@ -70,17 +73,20 @@ public class HttpServer : IDisposable
     private async Task HandleClient(Socket client, CancellationToken token)
     {
         client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-        client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, 20);
-        client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, 5);
-        client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, 3);
+        client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, _config.Server.HTTPKeepAliveTime);
+        client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, _config.Server.HTTPKeepAliveInterval);
+        client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, _config.Server.HTTPKeepAliveRetryCount);
         using (client)
         using (var network = new NetworkStream(client, ownsSocket: false))
         {
             try
             {
+                byte[]? leftover = [];
+
                 while (!token.IsCancellationRequested)
                 {
-                    if (!await HandlePacket(network, token)) 
+                    leftover = await HandlePacket(network, leftover, token);
+                    if (leftover == null) 
                         break;
                 }
                 Log.Info($"{client.RemoteEndPoint} disconnected, reason: close connection");
@@ -89,92 +95,105 @@ public class HttpServer : IDisposable
             {
                 Log.Error(ex, $"Error handling client {client.RemoteEndPoint}");
             }
-            finally
-            {
-                client.Close();
-                network.Dispose();
-                client.Dispose();
-            }
         }
     }
-    private async Task<bool> HandlePacket(NetworkStream network, CancellationToken cts)
+    private async Task<byte[]?> HandlePacket(NetworkStream network, byte[]? leftoverBytes, CancellationToken cts)
     {
-        byte[] buffer = ArrayPool<byte>.Shared.Rent(MaxHeaderSize);
+        int bufferSize = leftoverBytes != null && leftoverBytes.Length > MaxHeaderSize ? leftoverBytes.Length + 1024 : MaxHeaderSize;
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
         try
         {
             int totalBytesRead = 0;
             int headerEndIndex = -1;
 
+            if (leftoverBytes != null && leftoverBytes.Length > 0)
+            {
+                leftoverBytes.CopyTo(buffer, 0);
+                totalBytesRead = leftoverBytes.Length;
+            }
+
             while (!cts.IsCancellationRequested)
             {
+                var currentSpan = buffer.AsSpan(0, totalBytesRead);
+                headerEndIndex = currentSpan.IndexOf("\r\n\r\n"u8);
+                
+                if (headerEndIndex != -1) break;
+
+                if (totalBytesRead >= MaxHeaderSize)
+                {
+                    Log.Warn("Request headers exceeded max size limit.");
+                    await SendError(network, 413, "Payload Too Large");
+                    return null;
+                }
+
                 try
                 {
                     int read = await network.ReadAsync(buffer.AsMemory(totalBytesRead, buffer.Length - totalBytesRead), cts);
-                    if (read == 0) return false;
+                    if (read == 0) return null;
                     
                     totalBytesRead += read;
-                    
-                    var currentSpan = buffer.AsSpan(0, totalBytesRead);
-                    headerEndIndex = currentSpan.IndexOf("\r\n\r\n"u8);
-                    
-                    if (headerEndIndex != -1) break;
-                    
-                    if (totalBytesRead >= MaxHeaderSize)
-                    {
-                        Log.Warn("Request headers exceeded max size limit.");
-                        await SendError(network, 413, "Payload Too Large");
-                        return false;
-                    }
-                } catch {}
+                } 
+                catch 
+                { 
+                    return null; 
+                }
             }
 
-            if (headerEndIndex == -1) return false;
+            if (headerEndIndex == -1) return null;
 
             HTTPRequestOptions requestOptions = new();
-            HTTPResponseOptions responceOptions = new();
+            HTTPResponseOptions responseOptions = new();
 
-            ParseHeaders(buffer.AsSpan(0, headerEndIndex), requestOptions, responceOptions);
+            ParseHeaders(buffer.AsSpan(0, headerEndIndex), requestOptions, responseOptions);
+
+            int headerBytesCount = headerEndIndex + 4; 
+            int firstReadBytes = totalBytesRead - headerBytesCount;
+            int contentLength = 0;
 
             if (requestOptions.Method == "POST")
             {
-                if (requestOptions.Headers.TryGetValue("content-length", out var lengthStr) && int.TryParse(lengthStr, out int length) && length > 0)
+                if (requestOptions.Headers.TryGetValue("content-length", out var lengthStr) && int.TryParse(lengthStr, out contentLength) && contentLength > 0)
                 {
-                    byte[] bodyBuffer = new byte[length];
+                    byte[] bodyBuffer = new byte[contentLength];
                     
-                    int headerBytesCount = headerEndIndex + 4; 
-                    int bodyBytesInFirstRead = totalBytesRead - headerBytesCount;
-                    
-                    if (bodyBytesInFirstRead > 0)
+                    int bytesToCopy = Math.Min(firstReadBytes, contentLength);
+                    if (bytesToCopy > 0)
                     {
-                        int bytesToCopy = Math.Min(bodyBytesInFirstRead, length);
                         buffer.AsSpan(headerBytesCount, bytesToCopy).CopyTo(bodyBuffer);
                     }
 
-                    int currentBodyRead = Math.Min(bodyBytesInFirstRead, length);
+                    int bodyRead = bytesToCopy;
 
-                    while (currentBodyRead < length && !cts.IsCancellationRequested)
+                    while (bodyRead < contentLength && !cts.IsCancellationRequested)
                     {
-                        int read = await network.ReadAsync(bodyBuffer.AsMemory(currentBodyRead, length - currentBodyRead), cts);
-                        if (read == 0) break;
-                        currentBodyRead += read;
+                        int read = await network.ReadAsync(bodyBuffer.AsMemory(bodyRead, contentLength - bodyRead), cts);
+                        if (read == 0) return null;
+                        bodyRead += read;
                     }
                     requestOptions.BodyBytes = bodyBuffer;
                 }
                 else
                 {
                     await SendError(network, 400, "Bad Request");
-                    return true;
+                    return null;
                 }
             }
+            await HTTPInputReader.ReadTheInputHTTP(requestOptions, responseOptions);
+            await SendPacket(network, responseOptions);
 
-            await HTTPInputReader.ReadTheInputHTTP(requestOptions, responceOptions);
-            await SendPacket(network, responceOptions);
-            return true;
+            int excessBytes = firstReadBytes - contentLength;
+            
+            if (excessBytes > 0)
+            {
+                return buffer.AsSpan(headerBytesCount + contentLength, excessBytes).ToArray();
+            }
+
+            return []; 
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error processing incoming packet");
-            return false;
+            return null;
         }
         finally
         {
