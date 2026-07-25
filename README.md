@@ -4,7 +4,7 @@ This project is a dedicated server for Steel Division 2 that implements the Eugn
 
 [You can see which games are supported](#supported-games)
 
-You can find more in our [Discord](https://discord.gg/UM4CjfqAC)
+You can find more in our [Discord](https://discord.gg/jxcU74m6QU)
 
 ## What works
 
