@@ -91,12 +91,12 @@ namespace EugnetProtocol.TCP.Proxy.F
             }
             await DatabaseManager.UpdateData(stats);
             byte[] bytes = new byte[32]; // Well, well, Eugens thanks for #v
-            var fields = type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(f => f.PropertyType == typeof(int) && f.Name != "SteamID" && f.Name != "EugenID");
-            var buf = await Writer.WriteBytes("QQsQQLL",session.EugenID,-1,"",-1,-1,session.game_id, fields.Count());
+            var fields = type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(f => f.Name != "SteamID" && f.Name != "EugenID" && f.Name != "Rev");
+            var buf = await Writer.WriteBytes("QQsQQLL",session.EugenID,-1,"",-1,-1,0, fields.Count());
             foreach(var field in fields)
             {
                 Log.Debug("S");
-                var strbytes = Encoding.UTF8.GetBytes($"@{field.Name}");
+                var strbytes = Encoding.UTF8.GetBytes($"@{field.Name.ToLower()}");
                 for (int i = 0; i < strbytes.Length; i++)
                 {
                     bytes[i] = strbytes[i];
@@ -105,7 +105,7 @@ namespace EugnetProtocol.TCP.Proxy.F
                 Array.Clear(bytes, 0, bytes.Length);
                 buf.AddRange(await Writer.WriteBytes("S",$"{field.GetValue(stats)}"));
             } 
-            FPacket responce = new(fPacket.channel,(byte)FClientOpcode.StatsResult, await Writer.WriteBytes("aa", true, false));
+            FPacket responce = new(fPacket.channel,(byte)FClientOpcode.StatsResult, await Writer.WriteBytes("aa", true, true));
             await session.Send(await responce.ToSend());
             responce = new(fPacket.channel,(byte)FClientOpcode.Stats, buf);
             await session.Send(await responce.ToSend());
