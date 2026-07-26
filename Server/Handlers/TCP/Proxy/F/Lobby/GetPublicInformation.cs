@@ -1,9 +1,11 @@
 using EugnetProtocol.Common.Interfaces;
+using NLog;
 
 namespace EugnetProtocol.TCP.Proxy.F
 {
     public class GetPublicInformation : IFPacketHandler
     {
+        private static readonly Logger Log = LogManager.GetCurrentClassLogger();
         public async Task Process(FPacket fPacket, Session session)
         {
             object[] values;
@@ -53,8 +55,9 @@ namespace EugnetProtocol.TCP.Proxy.F
                                 pack.AddRange(length);
                                 pack.AddRange(option);
                             }
-                            catch
+                            catch(Exception ex)
                             {
+                                Log.Debug(ex);
                                 continue;
                             }
                         }

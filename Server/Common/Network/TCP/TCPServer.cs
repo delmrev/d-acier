@@ -5,6 +5,8 @@ using System.Net.Security;
 using System.Security.Authentication;
 using NLog;
 using System.Buffers.Binary;
+using System.Buffers;
+using System.Collections.Concurrent;
 
 public class TCPServer : IDisposable
 {
@@ -18,8 +20,9 @@ public class TCPServer : IDisposable
     private readonly X509Certificate2 _cert;
     private ProxyManager _proxyManager = new();
     private bool _isStarted;
-    private readonly CancellationTokenSource _cts;
+    private readonly CancellationTokenSource _cts = new();
     private ConfigData _config;
+    private readonly ConcurrentDictionary<Guid, Task> _activeClients = new();
 
     public TCPServer(ConfigData config, X509Certificate2 certificate)
     {
@@ -28,7 +31,6 @@ public class TCPServer : IDisposable
         Address = config.Server.Address;
         Port = config.Server.TCP;
         EndPoint = new IPEndPoint(IPAddress.Parse(Address), Port);
-        _cts = new CancellationTokenSource();
     }
 
     public TCPServer(ConfigData config, EndPoint endPoint, X509Certificate2 certificate)
@@ -38,7 +40,6 @@ public class TCPServer : IDisposable
         Address = config.Server.Address;
         Port = config.Server.TCP;
         EndPoint = endPoint;
-        _cts = new CancellationTokenSource();
     }
 
     public async Task Start()
@@ -72,7 +73,11 @@ public class TCPServer : IDisposable
                 Log.Error(ex, "Error accepting client");
                 continue;
             }
-            _ = Task.Run(() => HandleClient(clientSocket, _cts.Token), _cts.Token);
+            Guid clientId = Guid.NewGuid();
+            Task clientTask = HandleClient(clientSocket, _cts.Token);
+            _activeClients.TryAdd(clientId, clientTask);
+
+            _ = clientTask.ContinueWith(_ => _activeClients.TryRemove(clientId, out _), TaskContinuationOptions.ExecuteSynchronously);
         }
     }
 
@@ -100,7 +105,7 @@ public class TCPServer : IDisposable
                     ClientCertificateRequired = false,
                     CertificateRevocationCheckMode = X509RevocationMode.NoCheck
                 };
-                await ssl.AuthenticateAsServerAsync(options, token);
+                await ssl.AuthenticateAsServerAsync(options, token).WaitAsync(TimeSpan.FromSeconds(10), token);
                 stream = ssl;
             }
             else
@@ -113,31 +118,38 @@ public class TCPServer : IDisposable
             }
             session = new Session(client, stream);
 
-            byte[] readBuffer = new byte[4096];
-            byte[]? waitingpacket = null;
+            session.cts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, session.cts.Token);
 
-            while (stream.CanRead)
+            byte[] readBuffer = ArrayPool<byte>.Shared.Rent(4096);
+            using var messageBuffer = new MemoryStream();
+            while (stream.CanRead && !session.cts.IsCancellationRequested)
             {
-                int bytesRead = await stream.ReadAsync(readBuffer, token);
+                int bytesRead = await stream.ReadAsync(readBuffer, session.cts.Token);
                 if (bytesRead <= 0) break;
-                byte[] currentData;
-                
-                if (waitingpacket != null && waitingpacket.Length > 0)
+                messageBuffer.Write(readBuffer, 0, bytesRead);
+                if (messageBuffer.TryGetBuffer(out ArraySegment<byte> currentData))
                 {
-                    currentData = new byte[waitingpacket.Length + bytesRead];
-                    Buffer.BlockCopy(waitingpacket, 0, currentData, 0, waitingpacket.Length);
-                    Buffer.BlockCopy(readBuffer, 0, currentData, waitingpacket.Length, bytesRead);
+                    int consumedBytes = await ProcessIncoming(currentData, session, session.cts.Token);
+                    if (consumedBytes > 0)
+                    {
+                        int leftover = (int)messageBuffer.Length - consumedBytes;
+                        if (leftover > 0)
+                        {
+                            Buffer.BlockCopy(currentData.Array!, currentData.Offset + consumedBytes, currentData.Array!, currentData.Offset, leftover);
+                            messageBuffer.SetLength(leftover);
+                        }
+                        else
+                        {
+                            messageBuffer.SetLength(0);
+                        }
+                    }
                 }
-                else
-                {
-                    currentData = new byte[bytesRead];
-                    Buffer.BlockCopy(readBuffer, 0, currentData, 0, bytesRead);
-                }
-
-                waitingpacket = await ProcessIncoming(currentData, session);
             }
-
             Log.Info($"{client.RemoteEndPoint} disconnected, reason: close connection");
+        }
+        catch (OperationCanceledException)
+        {
+            Log.Info($"{client.RemoteEndPoint} disconnected, reason: close connection"); 
         }
         catch (Exception ex)
         {
@@ -150,17 +162,21 @@ public class TCPServer : IDisposable
             {
                 await session.DisposeAsync();
             }
+            if (client.Connected)
+            {
+                client.Shutdown(SocketShutdown.Both);
+            }
             stream?.Dispose();
             client?.Close();
             client?.Dispose();
         }
     }
-    private async Task<byte[]?> ProcessIncoming(ReadOnlyMemory<byte> data, Session session)
+    private async Task<int> ProcessIncoming(ReadOnlyMemory<byte> data, Session session, CancellationToken token)
     {
+        int position = 0;
         try
         {
-            int position = 0;
-            while (position < data.Length)
+            while (position < data.Length && !token.IsCancellationRequested)
             {
                 if (position + 2 > data.Length)
                 {
@@ -174,7 +190,8 @@ public class TCPServer : IDisposable
                 position += 2;
                 ReadOnlyMemory<byte> bodyMemory = data.Slice(position, length);
                 position += length; 
-                byte[] payload = bodyMemory.ToArray(); 
+                
+                byte[] payload = bodyMemory.ToArray();
                 
                 if (_config.Logging.EnableDebug)
                 {
@@ -184,20 +201,16 @@ public class TCPServer : IDisposable
                 await _proxyManager.Handle(payload, session);
             }
 
-            if (position < data.Length)
-            {
-                return data[position..].ToArray();
-            }
-            return null;
+            return position;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error processing incoming packet");
-            if (session != null && (session.Socket == null || session.Stream == null || !session.Stream.CanRead || !session.Socket.Connected))
+            if (session != null && (session.Socket == null || session.Stream == null || !session.Stream.CanRead || !session.Socket.Connected || !token.IsCancellationRequested))
             {
                 await session.DisposeAsync();
             }
-            return null; 
+            return position;
         }
     }
     public void Stop()
@@ -208,18 +221,23 @@ public class TCPServer : IDisposable
         Socket_TCP?.Close();
         Socket_TCP?.Dispose();
         _isStarted = false;
+        if (!_activeClients.IsEmpty)
+        {
+            Log.Info($"Waiting for {_activeClients.Count} active clients");
+            try
+            {
+                Task.WaitAll([.. _activeClients.Values], TimeSpan.FromSeconds(3));
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Some client tasks were forced to stop.");
+            }
+        }
         Log.Info("TCP Server stopped");
-        _cts?.Dispose();
     }
 
     public void Dispose(){
         Stop();
         GC.SuppressFinalize(this);
-    }
-
-    public async Task Restart()
-    {
-        Stop();
-        await Start();
     }
 }

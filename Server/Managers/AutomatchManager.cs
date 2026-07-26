@@ -1,4 +1,4 @@
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
 using NLog;
 
 public class AutomatchManager
@@ -54,7 +54,7 @@ public class AutomatchManager
         await user.Send(await response.ToSend()); 
         //host
         string randomMap = config.Automatch.Maps[Random.Shared.Next(0, config.Automatch.Maps.Length)];
-        string map = new JObject(new JProperty("scenario",randomMap)).ToString(Newtonsoft.Json.Formatting.None);
+        string map = JsonSerializer.Serialize(new { scenario = randomMap });
         buffer = await Writer.WriteBytes("aQaLBBBs", true, new_lobby.ID, true, 0,0x2, 0x1, 0x0, map);
         response = new(1,(byte)FClientOpcode.AutoMatchCreated,buffer);
         await host.Send(await response.ToSend());

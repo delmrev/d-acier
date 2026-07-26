@@ -8,7 +8,6 @@ namespace EugnetProtocol.TCP.Proxy.F
         {
             if(session.currentRoom == null )
             {
-                
                 return;
             }
             var read = await Reader.ReadBytes(packet.payload,"BBHLLQ");
@@ -26,7 +25,12 @@ namespace EugnetProtocol.TCP.Proxy.F
                 await user.Value.Send(await response.ToSend());
             }
             session.currentRoom.Users.Remove(session.roomKeyID);
-            if(session.currentRoom.Host == session && session.currentRoom.Users.Count > 0){
+            if(session.currentRoom.Users.Count == 0)
+            {
+                await LobbyManager.Instance.RemoveRoom(session.currentRoom.ID, session.game_id);
+                session.currentRoom.Dispose();
+                session.currentRoom = null;
+            } else if(session.currentRoom.Host == session && session.currentRoom.Users.Count > 0){
                 int id = -1;
                 foreach(var user in session.currentRoom.Users)
                 {
@@ -43,8 +47,6 @@ namespace EugnetProtocol.TCP.Proxy.F
                 session.currentRoom = null;
             } else
             {
-                await LobbyManager.Instance.RemoveRoom(session.currentRoom.ID, session.game_id);
-                session.currentRoom.Dispose();
                 session.currentRoom = null;
             }
             if(session.channels.TryGetValue("Relay.1", out int value))
@@ -52,12 +54,6 @@ namespace EugnetProtocol.TCP.Proxy.F
                 GPacket gPacket = new(value);
                 await session.Send(await gPacket.ToSend());
                 session.channels.Remove("Relay.1");
-            }
-            if(session.channels.TryGetValue("ath", out int value1))
-            {
-                GPacket gPacket = new(value1);
-                await session.Send(await gPacket.ToSend());
-                session.channels.Remove("ath");
             }
             session.isConnectedToRelay = false;
         }

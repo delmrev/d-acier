@@ -18,7 +18,7 @@ class Program
             Log.Info("Database has started");
 
             var config = ConfigData.Load();
-            GlobalManager.Instance.SetConfigData(config);
+            GlobalManager.Instance.SetConfig(config);
             AutomatchManager.Instance.config = config;
             
             // Logging config
@@ -96,6 +96,13 @@ class Program
 
             Log.Info("Starting servers...");
 
+            using var cts = new CancellationTokenSource();
+
+            Console.CancelKeyPress += (sender, e) =>
+            {
+                e.Cancel = true;
+                cts.Cancel();
+            };
             var tasks = new[]
             {
                 Task.Run(() => tcpServer.Start()),
@@ -107,26 +114,17 @@ class Program
             await Task.Delay(300);
             Log.Info("All servers started. Press Ctrl+C to stop.");
 
-            Console.CancelKeyPress += async (sender, e) =>
-            {
-                e.Cancel = true;
+            await Task.WhenAny(Task.WhenAll(tasks), Task.Delay(Timeout.Infinite, cts.Token));
 
-                Log.Info("Stopping servers...");
+            Log.Info("Stopping servers...");
 
-                await GlobalManager.Instance.Stop();
-                httpServer.Dispose();
-                tcpServer.Dispose();
-                httpsServer.Dispose();
+            await GlobalManager.Instance.Stop();
+            httpServer.Dispose();
+            tcpServer.Dispose();
+            httpsServer.Dispose();
 
-                _ = DatabaseManager.Stop();
-                LogManager.Shutdown();
-
-                e.Cancel = false;
-            };
-
-            await Task.WhenAll(tasks);
-
-            await Task.Delay(-1);
+            _ = DatabaseManager.Stop();
+            LogManager.Shutdown();
         }
         catch (Exception ex)
         {

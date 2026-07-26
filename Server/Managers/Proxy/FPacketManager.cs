@@ -38,6 +38,7 @@ namespace EugnetProtocol.TCP.Proxy
             var keepAliveHandler = new Keep_Alive();
             _handlers.Add((byte)FServerOpcode.KEEP_ALIVE_PACKET, keepAliveHandler);
             _handlers.Add((byte)FServerOpcode.KEEP_ALIVE_PACKET_2, keepAliveHandler);
+            _handlers.Add(0x61, new CheckData());
             _handlers.Add((byte)FServerOpcode.FRIEND_COMMAND, new LambdaHandler(async (p, s) =>
             {
                 if (s.channels.TryGetValue("friend", out int value) && p.channel == value)

@@ -6,7 +6,6 @@ namespace EugnetProtocol.TCP.Proxy.F
     public class UserData : IFPacketHandler
     {
         private static readonly Logger Log = LogManager.GetCurrentClassLogger();
-        private ConfigData config = GlobalManager.Instance.Data;
         public async Task Process(FPacket fPacket, Session session)
         {
             var data = await Reader.ReadBytes(fPacket.payload,"Q");
@@ -24,13 +23,20 @@ namespace EugnetProtocol.TCP.Proxy.F
                 }
                 if(user != null)
                 {
-                    if (config != null && config.Logging.EnableDebug)
+                    if (GlobalManager.Instance.Config != null && GlobalManager.Instance.Config.Logging.EnableDebug)
                     {
                         Log.Info($"Data user {session.EugenID} -> {user.EugenID}");
                     }
                     BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), session.EugenID);
-                    fPacket.channel = user.channels["Relay.1"];
-                    await user.Send(await fPacket.ToSend());
+                    try
+                    {
+                        fPacket.channel = user.channels["Relay.1"];
+                        await user.Send(await fPacket.ToSend());
+                    }
+                    catch
+                    {
+                        user.QueuedPackets.Enqueue(fPacket);
+                    }
                 } else
                 {
                     Log.Error($"User dont found: {data[0]}");

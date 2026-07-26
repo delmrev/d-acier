@@ -1,5 +1,5 @@
+using System.Text.Json;
 using EugnetProtocol.Common.Interfaces;
-using Newtonsoft.Json.Linq;
 
 namespace EugnetProtocol.TCP.Proxy.D
 {
@@ -22,19 +22,21 @@ namespace EugnetProtocol.TCP.Proxy.D
         }
         private string GetMMSJson(Session session)
         {
-            JObject jsonData = new(
-                new JProperty("type", "game"),
-                new JProperty("name", "steel division 2"),
-                new JProperty("free", "0"),
-                new JProperty("AllowEugNetLogin", "1"),
-                new JProperty("AllowSteamLogin", "1"),
-                new JProperty("RequireSteamVAC", "0"),
-                new JProperty("SteamAppId", $"{Get_Game_ID(session.game_id)}"),
-                new JProperty("StatsURL", $"http://178.32.126.73:80/"),
-                new JProperty("paradoxAccount", "0"),
-                new JProperty("MinPlayerToUseSlDedi", "20")
-            );
-            return jsonData.ToString(Newtonsoft.Json.Formatting.None);
+            var jsonData = new
+            {
+                type = "game",
+                name = "steel division 2",
+                free = "0",
+                AllowEugNetLogin = "1",
+                AllowSteamLogin = "1",
+                RequireSteamVAC = "0",
+                SteamAppId = Get_Game_ID(session.game_id).ToString(),
+                StatsURL = "http://178.32.126.73:80/",
+                paradoxAccount = "0",
+                MinPlayerToUseSlDedi = "20"
+            };
+
+            return JsonSerializer.Serialize(jsonData);
         }
         private int Get_Game_ID(int EugenAppID) => EugenAppID switch
         {

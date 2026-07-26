@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.Sockets;
 using System.Threading.Channels;
 using EugnetProtocol.TCP.Proxy.F;
@@ -8,10 +9,10 @@ public class Session : IAsyncDisposable
     private static readonly Logger Log = LogManager.GetCurrentClassLogger();
     private bool _disposed = false;
     private readonly object _disposalLock = new();
-    public Socket Socket { get; }
-    public Stream Stream { get; }
     private readonly Channel<byte[]> _channel;
     private readonly Task _sendTask;
+    public Socket Socket { get; }
+    public Stream Stream { get; }
     public string? Name;
     public long EugenID;
     public Lobby? currentRoom;
@@ -23,7 +24,9 @@ public class Session : IAsyncDisposable
     public int unk_2;
     public int game_id;
     public bool isConnectedToRelay = false;
-    private readonly CancellationTokenSource _cts = new();
+    public bool isAntiHackChecked = false;
+    public CancellationTokenSource cts = new();
+    public ConcurrentQueue<FPacket> QueuedPackets = new();
     public Session(Socket socket, Stream stream)
     {
         Socket = socket;
@@ -40,11 +43,15 @@ public class Session : IAsyncDisposable
     {
         try
         {
-            await foreach (var packet in _channel.Reader.ReadAllAsync(_cts.Token))
+            await foreach (var packet in _channel.Reader.ReadAllAsync(cts.Token))
             {
                 if (Stream == null || !Stream.CanWrite) break;
-                
-                await Stream.WriteAsync(packet, _cts.Token);
+
+                if (GlobalManager.Instance.Config != null && GlobalManager.Instance.Config.Logging.EnableDebug)
+                {
+                    Log.Debug("Outgoing packet ({0} bytes):\n{1}", packet.Length, HexDump.Dump(packet));
+                }
+                await Stream.WriteAsync(packet, cts.Token);
             }
         }
         catch (OperationCanceledException) {}
@@ -61,23 +68,23 @@ public class Session : IAsyncDisposable
             _disposed = true;
         }
         _channel.Writer.Complete();
-        _cts.Cancel();
+        cts.Cancel();
         try
         {
             await _sendTask;
         }
         catch { }
-        _cts.Dispose();
         currentChat?.users.Remove(this);
         currentChat = null;
         currentRoom?.Users.Remove(roomKeyID);
         if(currentRoom != null){
             LeaveLobby lobby = new();
-            FPacket fPacket = new(1,0x00,Writer.WriteBytes("BBHLLQ",0x0,0x0,0,0,0,currentRoom.ID).Result);
+            FPacket fPacket = new(1,0x00,await Writer.WriteBytes("BBHLLQ",0x0,0x0,0,0,0,currentRoom.ID));
             await lobby.Process(fPacket, this);
             currentRoom = null;
         }
         channels.Clear();
+        QueuedPackets.Clear();
         await GlobalManager.Instance.LogOutSession(this);
         try
         {

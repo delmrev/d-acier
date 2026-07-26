@@ -6,10 +6,9 @@ public class GlobalManager
     private static readonly Logger Log = LogManager.GetCurrentClassLogger();
     private static readonly GlobalManager _instance = new();
     public static GlobalManager Instance => _instance;
-    public ConfigData? Data { get; private set; }
+    public ConfigData? Config { get; private set; } = new();
     private static readonly ConcurrentDictionary<int, ConcurrentDictionary<long,Session>> Players = new();
     private static object configDataLocker = new();
-    private static ConfigData? Confdata;
     public async Task RegSession(Session session, int gameid)
     {
         Players.TryAdd(gameid, new());
@@ -30,20 +29,11 @@ public class GlobalManager
         return Players[gameid].GetValueOrDefault(EugenID);
     }
     
-    public void SetConfigData(ConfigData data)
+    public void SetConfig(ConfigData data)
     {
         lock (configDataLocker)
         {
-           Confdata = data; 
-           Instance.Data = data;
-        }
-    }
-    
-    public ConfigData? GetConfigData()
-    {
-        lock (configDataLocker)
-        {
-           return Confdata;
+           Instance.Config = data;
         }
     }
     
