@@ -16,10 +16,12 @@ public class HttpsServer : IDisposable
     public int Port { get; private set; }
 
     private const int MaxHeaderSize = 8192;
+    private const int MaxBodySize = 10*1024*1024;
     private bool IsStarted;
-    private CancellationTokenSource? cts;
+    private CancellationTokenSource cts = new();
     private readonly X509Certificate2 cert;
     private ConfigData _config;
+    private HTTPManager _manager = new();
 
     public HttpsServer(ConfigData config,X509Certificate2 certificate)
     {
@@ -51,7 +53,6 @@ public class HttpsServer : IDisposable
         Socket_TCP.Bind(EndPoint);
         Socket_TCP.Listen();
 
-        cts = new CancellationTokenSource();
         IsStarted = true;
         Log.Info($"HTTPS Server Started on {Address}:{Port}");
 
@@ -96,7 +97,6 @@ public class HttpsServer : IDisposable
                     ClientCertificateRequired = false,
                     CertificateRevocationCheckMode = X509RevocationMode.NoCheck
                 };
-                
                 await ssl.AuthenticateAsServerAsync(options, token);
 
                 byte[]? left = [];
@@ -144,11 +144,16 @@ public class HttpsServer : IDisposable
                     await SendError(ssl, 413, "Payload Too Large");
                     return null;
                 }
+                using var rcts = CancellationTokenSource.CreateLinkedTokenSource(cts);
+                rcts.CancelAfter(TimeSpan.FromSeconds(30));
 
                 try
                 {
-                    int read = await ssl.ReadAsync(buffer.AsMemory(totalBytesRead, buffer.Length - totalBytesRead), cts);
-                    if (read == 0) return null;
+                    int read = await ssl.ReadAsync(buffer.AsMemory(totalBytesRead, buffer.Length - totalBytesRead), rcts.Token);
+                    if (read == 0) 
+                    {
+                        return null;
+                    }
                     
                     totalBytesRead += read;
                 } 
@@ -173,6 +178,11 @@ public class HttpsServer : IDisposable
             {
                 if (requestOptions.Headers.TryGetValue("content-length", out var lengthStr) && int.TryParse(lengthStr, out contentLength) && contentLength > 0)
                 {
+                    if (contentLength > MaxBodySize)
+                    {
+                        await SendError(ssl, 413, "Payload Too Large");
+                        return null;
+                    }
                     byte[] bodyBuffer = new byte[contentLength];
                     
                     int bytesToCopy = Math.Min(bodyBytesInFirstRead, contentLength);
@@ -197,7 +207,7 @@ public class HttpsServer : IDisposable
                     return null;
                 }
             }
-            await HTTPInputReader.ReadTheInputHTTP(requestOptions, responseOptions);
+            await _manager.Handle(requestOptions, responseOptions);
             await SendPacket(ssl, responseOptions);
 
             int excessBytes = bodyBytesInFirstRead - contentLength;
@@ -285,19 +295,102 @@ public class HttpsServer : IDisposable
             headerBuilder.Append("Connection: keep-alive\r\n\r\n");
 
             byte[] headerBytes = Encoding.UTF8.GetBytes(headerBuilder.ToString());
-            await stream.WriteAsync(headerBytes);
 
             if (bodyBytes != null)
             {
-                await stream.WriteAsync(bodyBytes);
+                byte[] fullResponse = new byte[headerBytes.Length + bodyBytes.Length];
+                Buffer.BlockCopy(headerBytes, 0, fullResponse, 0, headerBytes.Length);
+                Buffer.BlockCopy(bodyBytes, 0, fullResponse, headerBytes.Length, bodyBytes.Length);
+            
+                await stream.WriteAsync(fullResponse,cts.Token);
+            }
+            else
+            {
+                await stream.WriteAsync(headerBytes,cts.Token);
             }
 
+            await stream.FlushAsync(cts.Token);
+
             Log.Debug($"Response sent: {options.StatusCode} {options.StatusString}");
+        }
+        catch (OperationCanceledException)
+        {
+            
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error sending packet");
         }
+    }
+    public static Dictionary<string, string> ParseMultipartFormData(byte[]? bodyBytes, string boundary)
+    {
+        var values = new Dictionary<string, string>();
+        if (bodyBytes == null || bodyBytes.Length == 0) return values;
+
+        byte[] boundaryBytes = Encoding.UTF8.GetBytes("--" + boundary);
+        ReadOnlySpan<byte> span = bodyBytes.AsSpan();
+
+        try
+        {
+            while (true)
+            {
+                int boundaryIndex = span.IndexOf(boundaryBytes);
+                if (boundaryIndex == -1) break;
+
+                span = span[(boundaryIndex + boundaryBytes.Length)..];
+
+                if (span.Length >= 2 && span[0] == '-' && span[1] == '-')
+                    break;
+
+                if (span.Length >= 2 && span[0] == '\r' && span[1] == '\n')
+                    span = span[2..];
+
+                int headersEnd = span.IndexOf("\r\n\r\n"u8);
+                if (headersEnd == -1) break;
+
+                var headersSpan = span.Slice(0, headersEnd);
+                string headersString = Encoding.UTF8.GetString(headersSpan);
+
+                var dataSpan = span[(headersEnd + 4)..];
+                
+                int nextBoundary = dataSpan.IndexOf(boundaryBytes);
+                if (nextBoundary == -1) break;
+
+                var valueSpan = dataSpan[..nextBoundary];
+                if (valueSpan.Length >= 2 && valueSpan[^2] == '\r' && valueSpan[^1] == '\n')
+                {
+                    valueSpan = valueSpan[..^2];
+                }
+
+                string nameKey = ExtractNameFromHeaders(headersString);
+                
+                if (!string.IsNullOrEmpty(nameKey))
+                {
+                    string valueStr = Encoding.UTF8.GetString(valueSpan);
+                    values[nameKey] = valueStr;
+                    Log.Debug($"Parsed Form Field: {nameKey} = {valueStr}");
+                }
+
+                span = dataSpan; 
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error parsing multipart/form-data");
+        }
+
+        return values;
+    }
+    private static string ExtractNameFromHeaders(string headers)
+    {
+        int nameIdx = headers.IndexOf("name=\"", StringComparison.OrdinalIgnoreCase);
+        if (nameIdx == -1) return string.Empty;
+        
+        nameIdx += 6;
+        int endIdx = headers.IndexOf('"', nameIdx);
+        if (endIdx == -1) return string.Empty;
+        
+        return headers[nameIdx..endIdx];
     }
 
     public void Stop()
@@ -309,18 +402,11 @@ public class HttpsServer : IDisposable
         Socket_TCP?.Dispose();
         IsStarted = false;
         Log.Info("HTTPS Server stopped");
-        cts?.Dispose();
     }
 
     public void Dispose()
     {
         Stop();
         GC.SuppressFinalize(this);
-    }
-
-    public async Task Restart()
-    {
-        Stop();
-        await Start();
     }
 }

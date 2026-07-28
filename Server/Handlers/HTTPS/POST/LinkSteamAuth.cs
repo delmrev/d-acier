@@ -1,13 +1,13 @@
+using System.Text.Json;
 using Database;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using EugnetProtocol.Common.Interfaces;
 using NLog;
 namespace HTTPS.Methods.POST
 {
-    public class LinkSteamAuth
+    public class LinkSteamAuth : IHTTPHandler
     {
         private static readonly Logger Log = LogManager.GetCurrentClassLogger();
-        public static async Task Process(HTTPRequestOptions request, HTTPResponseOptions response)
+        public async Task Process(HTTPRequestOptions request, HTTPResponseOptions response)
         {
             if (!request.Headers.TryGetValue("content-type", out var contentType) || !contentType.Contains("boundary="))
                 {
@@ -19,7 +19,7 @@ namespace HTTPS.Methods.POST
 
                 string boundary = contentType.Split("boundary=")[1].Trim();
 
-                var values = HTTPSInputReader.ParseMultipartFormData(request.BodyBytes, boundary);
+                var values = HttpsServer.ParseMultipartFormData(request.BodyBytes, boundary);
 
                 if (values == null || !values.TryGetValue("steamid", out string? value) || !values.TryGetValue("login", out string? login) || !values.TryGetValue("eappid", out string? value1) || !values.TryGetValue("password", out string? password))
                 {
@@ -71,11 +71,16 @@ namespace HTTPS.Methods.POST
 
                 response.StatusCode = 200;
                 response.ContentType = "application/json";
-                var jsonResponse = new JObject(
-                    new JProperty("result", "OK"),
-                    new JProperty("mmsid", eugenID)
-                );
-                response.Body = jsonResponse.ToString(Formatting.None);
+                var jsonResponse = new
+                {
+                    result = "OK",
+                    mmsid = eugenID
+                };
+
+                response.Body = JsonSerializer.Serialize(jsonResponse);
+                response.StatusCode = 200;
+                response.StatusString = "OK";
+                response.ContentType = "application/json";
                 
                 Log.Info($"Account created successfully for SteamID: {steamID}, EugenID: {eugenID}");
         }

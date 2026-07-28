@@ -5,7 +5,6 @@ public class ConfigData
     public ServerConfig Server { get; set; } = new();
     public LoggingConfig Logging { get; set; } = new();
     public SSLConfig SSL { get; set; } = new();
-    public AutomatchConfig Automatch { get; set; } = new();
 
     public static ConfigData Load(string path = "./Configuration/Server.json")
     {
@@ -48,8 +47,4 @@ public class LoggingConfig
 public class SSLConfig
 {
     public string Certificate { get; set; } = string.Empty;
-}
-public class AutomatchConfig
-{
-    public string[] Maps { get; set; } = [];
 }

@@ -13,10 +13,11 @@ public class HttpServer : IDisposable
     public int Port { get; private set; }
 
     private const int MaxHeaderSize = 8192;
+    private const int MaxBodySize = 10*1024*1024;
     private bool IsStarted;
-    private CancellationTokenSource? cts;
+    private CancellationTokenSource cts = new();
     private ConfigData _config;
-
+    private HTTPManager _manager = new();
     public HttpServer(ConfigData config)
     {
         Address = config.Server.Address;
@@ -45,7 +46,6 @@ public class HttpServer : IDisposable
         Socket_TCP.Bind(EndPoint);
         Socket_TCP.Listen();
 
-        cts = new CancellationTokenSource();
         IsStarted = true;
         Log.Info($"HTTP Server Started on {Address}:{Port}");
 
@@ -125,10 +125,12 @@ public class HttpServer : IDisposable
                     await SendError(network, 413, "Payload Too Large");
                     return null;
                 }
+                using var rcts = CancellationTokenSource.CreateLinkedTokenSource(cts);
+                rcts.CancelAfter(TimeSpan.FromSeconds(30));
 
                 try
                 {
-                    int read = await network.ReadAsync(buffer.AsMemory(totalBytesRead, buffer.Length - totalBytesRead), cts);
+                    int read = await network.ReadAsync(buffer.AsMemory(totalBytesRead, buffer.Length - totalBytesRead), rcts.Token);
                     if (read == 0) return null;
                     
                     totalBytesRead += read;
@@ -154,6 +156,11 @@ public class HttpServer : IDisposable
             {
                 if (requestOptions.Headers.TryGetValue("content-length", out var lengthStr) && int.TryParse(lengthStr, out contentLength) && contentLength > 0)
                 {
+                    if (contentLength > MaxBodySize)
+                    {
+                        await SendError(network, 413, "Payload Too Large");
+                        return null;
+                    }
                     byte[] bodyBuffer = new byte[contentLength];
                     
                     int bytesToCopy = Math.Min(firstReadBytes, contentLength);
@@ -178,7 +185,7 @@ public class HttpServer : IDisposable
                     return null;
                 }
             }
-            await HTTPInputReader.ReadTheInputHTTP(requestOptions, responseOptions);
+            await _manager.Handle(requestOptions, responseOptions);
             await SendPacket(network, responseOptions);
 
             int excessBytes = firstReadBytes - contentLength;
@@ -264,12 +271,21 @@ public class HttpServer : IDisposable
             headerBuilder.Append("Connection: keep-alive\r\n\r\n");
 
             byte[] headerBytes = Encoding.UTF8.GetBytes(headerBuilder.ToString());
-            await stream.WriteAsync(headerBytes);
 
             if (bodyBytes != null)
             {
-                await stream.WriteAsync(bodyBytes);
+                byte[] fullResponse = new byte[headerBytes.Length + bodyBytes.Length];
+                Buffer.BlockCopy(headerBytes, 0, fullResponse, 0, headerBytes.Length);
+                Buffer.BlockCopy(bodyBytes, 0, fullResponse, headerBytes.Length, bodyBytes.Length);
+            
+                await stream.WriteAsync(fullResponse,cts.Token);
             }
+            else
+            {
+                await stream.WriteAsync(headerBytes,cts.Token);
+            }
+
+            await stream.FlushAsync(cts.Token);
 
             Log.Debug($"Response sent: {options.StatusCode} {options.StatusString}");
         }
@@ -287,7 +303,6 @@ public class HttpServer : IDisposable
         Socket_TCP?.Dispose();
         IsStarted = false;
         Log.Info("HTTP Server stopped");
-        cts?.Dispose();
     }
 
     public void Dispose()

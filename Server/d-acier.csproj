@@ -13,7 +13,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="NLog" Version="6.1.0" />
     <PackageReference Include="sqlite-net-sqlcipher" Version="1.9.172" />
   </ItemGroup>
@@ -22,7 +21,7 @@
     <None Update="NLog.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Configuration\Server.json">
+    <None Update="Configuration\**\*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

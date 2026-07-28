@@ -9,6 +9,11 @@ public class AutomatchManager
     private static readonly AutomatchManager _instance = new();
     private static readonly Dictionary<int,List<Session>> automatch_list = new();
     private readonly object locker = new();
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true
+    };
     public async Task AddToAutoMatch(Session session) {
         lock (locker)
         {
@@ -53,7 +58,14 @@ public class AutomatchManager
         await host.Send(await response.ToSend()); 
         await user.Send(await response.ToSend()); 
         //host
-        string randomMap = config.Automatch.Maps[Random.Shared.Next(0, config.Automatch.Maps.Length)];
+        var confPath = Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory,
+                "Configuration/Automatch",
+                $"{host.game_id}.json"
+        );
+        string jsonText = File.ReadAllText(confPath);
+        string[] maps = JsonSerializer.Deserialize<string[]>(jsonText, JsonOptions) ?? [];
+        string randomMap = maps[Random.Shared.Next(0, maps.Length)];
         string map = JsonSerializer.Serialize(new { scenario = randomMap });
         buffer = await Writer.WriteBytes("aQaLBBBs", true, new_lobby.ID, true, 0,0x2, 0x1, 0x0, map);
         response = new(1,(byte)FClientOpcode.AutoMatchCreated,buffer);

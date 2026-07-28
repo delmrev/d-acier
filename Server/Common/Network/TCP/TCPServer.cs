@@ -23,6 +23,7 @@ public class TCPServer : IDisposable
     private readonly CancellationTokenSource _cts = new();
     private ConfigData _config;
     private readonly ConcurrentDictionary<Guid, Task> _activeClients = new();
+    private const int MaxMessageSize = 10*1024*1024;
 
     public TCPServer(ConfigData config, X509Certificate2 certificate)
     {
@@ -89,6 +90,7 @@ public class TCPServer : IDisposable
         client.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, _config.Server.TCPKeepAliveRetryCount);
         Session? session = null;
         Stream? stream = null;
+        byte[] readBuffer = ArrayPool<byte>.Shared.Rent(4096);
         try
         {
             byte[] peekBuffer = new byte[1];
@@ -120,7 +122,7 @@ public class TCPServer : IDisposable
 
             session.cts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, session.cts.Token);
 
-            byte[] readBuffer = ArrayPool<byte>.Shared.Rent(4096);
+            
             using var messageBuffer = new MemoryStream();
             while (stream.CanRead && !session.cts.IsCancellationRequested)
             {
@@ -129,6 +131,11 @@ public class TCPServer : IDisposable
                 messageBuffer.Write(readBuffer, 0, bytesRead);
                 if (messageBuffer.TryGetBuffer(out ArraySegment<byte> currentData))
                 {
+                    if (messageBuffer.Length + bytesRead > MaxMessageSize)
+                    {
+                        Log.Warn($"Client {client.RemoteEndPoint} exceeded maximum payload size.");
+                        break;
+                    }
                     int consumedBytes = await ProcessIncoming(currentData, session, session.cts.Token);
                     if (consumedBytes > 0)
                     {
@@ -158,14 +165,19 @@ public class TCPServer : IDisposable
         }
         finally
         {
+            ArrayPool<byte>.Shared.Return(readBuffer);
             if (session != null)
             {
                 await session.DisposeAsync();
             }
-            if (client.Connected)
+            try
             {
-                client.Shutdown(SocketShutdown.Both);
+                if (client.Connected)
+                {
+                    client.Shutdown(SocketShutdown.Both);
+                }
             }
+            catch (SocketException) {}
             stream?.Dispose();
             client?.Close();
             client?.Dispose();

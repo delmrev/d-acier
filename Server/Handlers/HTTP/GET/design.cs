@@ -1,34 +1,42 @@
+using System.Text.Json;
 using Database;
-using Newtonsoft.Json.Linq;
-using NLog;
+using EugnetProtocol.Common.Interfaces;
 
 namespace EugnetProtocol.HTTP.GET
 {
-    public class Design
+    public class Design : IHTTPHandler
     {
-        private static readonly Logger Log = LogManager.GetCurrentClassLogger();
-        public static async Task<string> Process(string[] options)
+        public async Task Process(HTTPRequestOptions request, HTTPResponseOptions response)
         {
+            if (string.IsNullOrEmpty(request.RequestURL))
+            {
+                response.StatusCode = 403;
+                response.StatusString = "Bad request";
+                return;
+            }
+            var options = request.RequestURL.Split(['_','\\','/','?','&','='], StringSplitOptions.RemoveEmptyEntries);
             int gameId = int.Parse(options[1][2..]);
             int startKey = int.Parse(options[6]);
             int offset = startKey > 0 ? startKey-1 : 0;
             var usersList = await DatabaseManager.GetELOList(gameId,offset,int.Parse(options[8]));
-            JArray array = [];
-            for (int i = 0; i < usersList.Count; i++)
+            var rows = usersList.Select((user, i) => new
             {
-                JObject obj = new(
-                    new JProperty("id",$"u{gameId}_{usersList[i].EugenID}"),
-                    new JProperty("key", startKey + i),
-                    new JProperty("value",$"{usersList[i].Value}")
-                );
-                array.Add(obj);
-            }
-            JObject output = new(
-                new JProperty("total_rows", await DatabaseManager.GetEloCount(gameId)),
-                new JProperty("offset", offset),
-                new JProperty("rows", array)
-            );
-            return output.ToString(Newtonsoft.Json.Formatting.None);
+                id = $"u{gameId}_{user.EugenID}",
+                key = startKey + i,
+                value = $"{user.Value}"
+            });
+
+            var output = new
+            {
+                total_rows = await DatabaseManager.GetEloCount(gameId),
+                offset,
+                rows
+            };
+
+            response.StatusCode = 200;
+            response.StatusString = "OK";
+            response.ContentType = "application/json";
+            response.Body = JsonSerializer.Serialize(output);
         }
     }
 }

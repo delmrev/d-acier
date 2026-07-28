@@ -1,23 +1,48 @@
+using System.Text.Json.Nodes;
 using Database;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using EugnetProtocol.Common.Interfaces;
 namespace EugnetProtocol.HTTP.GET
 {
-    public class Ustat
+    public class Ustat : IHTTPHandler
     {
-        public static async Task<string> ProcessGETUStat(long ID,int gameID)
+        public async Task Process(HTTPRequestOptions request, HTTPResponseOptions response)
         {
-            var data = await DatabaseManager.GetData(ID,gameID);
-            var user = await DatabaseManager.GetU0(ID);
-            JObject jsonData = new(
-                new JProperty("_id", $"u{gameID}_{ID}"),
-                new JProperty("_rev", $"{user?.Rev}")
-            );
-            foreach(var value in data)
+            if (string.IsNullOrEmpty(request.RequestURL))
             {
-                jsonData.Add(new JProperty($"{value.Key}", $"{value.Value}"));
+                response.StatusCode = 403;
+                response.StatusString = "Bad request";
+                return;
             }
-            return jsonData.ToString(Formatting.None);
+            var arguments = request.RequestURL.Split(['_','\\','/','?','&','='], StringSplitOptions.RemoveEmptyEntries);
+            if(int.TryParse(arguments[0][1..], out int gameID) && long.TryParse(arguments[1], out long ID))
+            {
+                var data = await DatabaseManager.GetData(ID,gameID);
+                if(data.Count == 0)
+                {
+                    response.StatusCode = 404;
+                    response.StatusString = "Object Not Found";
+                    return;
+                } 
+                var user = await DatabaseManager.GetU0(ID);
+
+                var jsonData = new JsonObject
+                {
+                    ["_id"] = $"u{gameID}_{ID}",
+                    ["_rev"] = user?.Rev?.ToString()
+                };
+
+                foreach (var value in data)
+                {
+                    jsonData[value.Key] = value.Value.ToString();
+                }
+                response.Body = jsonData.ToJsonString();
+                response.StatusCode = 200;
+                response.StatusString = "OK";
+                response.ContentType = "application/json";
+            } else
+            {
+                throw new Exception();
+            }
         }
     }
 }

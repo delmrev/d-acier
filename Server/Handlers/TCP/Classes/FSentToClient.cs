@@ -26,6 +26,7 @@ public enum FClientOpcode : byte
     BrausingMessage = 0xEF, // Server msg: unknown
     PublicInformationAlt = 0xF1, // Server msg: QQs#v
     GetLocale = 0xF2, //Client msg: s
+    QUEUES_INFO = 0xF6, // Server: s
     NETWORK_CHANNEL_DEDICATED_CLIENT_DATA = 0xC2, // unknown
     //NETWORK_CHANNEL_DEDICATED_SYSTEM_MSG = 0xC5, // unknown
     NETWORK_CHANNEL_DEDICATED_DISCONNECT = 0xC7, // unknown
