@@ -231,8 +231,10 @@ int WSAAPI hook_sendto(SOCKET s, const char* buf, int len, int flags, const sock
     return redirect::original_sendto(s, buf, len, flags, reinterpret_cast<sockaddr*>(&new_addr), tolen);
 }
 
-/// In this function we're fixing "Packet received from wrong source" issue for STUN server 
-/// The game checks that packet is received from original Eugen services, but we does not handle those.
+/// Fixes "Packet received from wrong source" for the STUN server.
+/// Only STUN replies are rewritten to appear as coming from the
+/// original Eugen STUN endpoint. Other UDP traffic (e.g. P2P)
+/// must preserve the real sender address.
 int WSAAPI hook_recvfrom(SOCKET s, char* buf, int len, int flags, sockaddr* from, int* fromlen)
 {
     const int result = redirect::original_recvfrom(s, buf, len, flags, from, fromlen);
@@ -246,40 +248,34 @@ int WSAAPI hook_recvfrom(SOCKET s, char* buf, int len, int flags, sockaddr* from
     if (!read_ipv4(from, ip, sizeof(ip), &port))
         return result;
 
-    if (!config.redirect_enabled || strcmp(ip, config.server_ip.c_str()) != 0)
+    if (!config.redirect_enabled)
+        return result;
+
+    // Only packets received from our redirected server are candidates.
+    if (strcmp(ip, config.server_ip.c_str()) != 0)
+        return result;
+
+    // Only restore STUN replies.
+    const uint16_t mapped_stun_port = config.port_map.at(3478);
+    if (port != mapped_stun_port)
         return result;
 
     auto* v4 = reinterpret_cast<sockaddr_in*>(from);
+
     if (!set_ipv4_addr(*v4, config.target_ip.c_str()))
         return result;
 
-    const uint16_t orig_port = port;
-    uint16_t restored_port = port;
-
-    // reverse-lookup: port_map stores original -> mapped, so find the
-    // original port whose mapped value matches what we just received
-    for (const auto& [from_port, to_port] : config.port_map)
-    {
-        if (to_port == port)
-        {
-            restored_port = from_port;
-            break;
-        }
-    }
-
-    v4->sin_port = htons(restored_port);
+    v4->sin_port = htons(3478);
 
     logger::info(
         log_category,
-        "recvfrom(socket={}, len={}, flags={}): RESTORE {}:{} -> {}:{}{}",
+        "recvfrom(socket={}, len={}, flags={}): RESTORE STUN {}:{} -> {}:3478",
         static_cast<uintptr_t>(s),
         len,
         flags,
         ip,
-        orig_port,
-        config.target_ip,
-        restored_port,
-        (orig_port != restored_port) ? std::format(" (port_map {} -> {})", orig_port, restored_port) : ""
+        port,
+        config.target_ip
     );
 
     return result;
