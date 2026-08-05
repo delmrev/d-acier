@@ -40,6 +40,7 @@ namespace redirect
     connect_t original_connect = nullptr;
     getaddrinfo_t original_getaddrinfo = nullptr;
     sendto_t original_sendto = nullptr;
+    recvfrom_t original_recvfrom = nullptr;
 }
 
 int WINAPI hook_connect(SOCKET s, const sockaddr* name, int namelen)
@@ -230,6 +231,60 @@ int WSAAPI hook_sendto(SOCKET s, const char* buf, int len, int flags, const sock
     return redirect::original_sendto(s, buf, len, flags, reinterpret_cast<sockaddr*>(&new_addr), tolen);
 }
 
+/// In this function we're fixing "Packet received from wrong source" issue for STUN server 
+/// The game checks that packet is received from original Eugen services, but we does not handle those.
+int WSAAPI hook_recvfrom(SOCKET s, char* buf, int len, int flags, sockaddr* from, int* fromlen)
+{
+    const int result = redirect::original_recvfrom(s, buf, len, flags, from, fromlen);
+
+    if (result == SOCKET_ERROR)
+        return result;
+
+    char ip[INET_ADDRSTRLEN]{};
+    uint16_t port = 0;
+
+    if (!read_ipv4(from, ip, sizeof(ip), &port))
+        return result;
+
+    if (!config.redirect_enabled || strcmp(ip, config.server_ip.c_str()) != 0)
+        return result;
+
+    auto* v4 = reinterpret_cast<sockaddr_in*>(from);
+    if (!set_ipv4_addr(*v4, config.target_ip.c_str()))
+        return result;
+
+    const uint16_t orig_port = port;
+    uint16_t restored_port = port;
+
+    // reverse-lookup: port_map stores original -> mapped, so find the
+    // original port whose mapped value matches what we just received
+    for (const auto& [from_port, to_port] : config.port_map)
+    {
+        if (to_port == port)
+        {
+            restored_port = from_port;
+            break;
+        }
+    }
+
+    v4->sin_port = htons(restored_port);
+
+    logger::info(
+        log_category,
+        "recvfrom(socket={}, len={}, flags={}): RESTORE {}:{} -> {}:{}{}",
+        static_cast<uintptr_t>(s),
+        len,
+        flags,
+        ip,
+        orig_port,
+        config.target_ip,
+        restored_port,
+        (orig_port != restored_port) ? std::format(" (port_map {} -> {})", orig_port, restored_port) : ""
+    );
+
+    return result;
+}
+
 void redirect::attach()
 {
     HMODULE ws2 = GetModuleHandleA("ws2_32.dll");
@@ -267,12 +322,14 @@ void redirect::attach()
     utils::hook::hook_by_name(ws2, "connect", (void*)hook_connect, (void**)&original_connect, "connect");
     utils::hook::hook_by_name(ws2, "getaddrinfo", (void*)hook_getaddrinfo, (void**)&original_getaddrinfo, "getaddrinfo");
     utils::hook::hook_by_name(ws2, "sendto", (void*)hook_sendto, (void**)&original_sendto, "sendto");
+    utils::hook::hook_by_name(ws2, "recvfrom", (void*)hook_recvfrom, (void**)&original_recvfrom, "recvfrom");
 
     logger::info(
         log_category,
-        "hooks ready: connect={} getaddrinfo={} sendto={}",
+        "hooks ready: connect={} getaddrinfo={} sendto={} recvfrom={}",
         original_connect != nullptr,
         original_getaddrinfo != nullptr,
-        original_sendto != nullptr
+        original_sendto != nullptr,
+        original_recvfrom != nullptr
     );
 }
