@@ -53,10 +53,10 @@ public class AutomatchManager
         user.roomKeyID = 4;
         host.currentRoom = new_lobby;
         user.currentRoom = new_lobby;
-        var buffer = await Writer.WriteBytes("LLLLLLLLLLLLLL", await GlobalManager.Instance.GetPlayersCount(host.game_id), 0,2, 389, 255, 2, 0, 2, 0, 0, 0, 0, 0, 0);
+        var buffer = Writer.WriteBytes("LLLLLLLLLLLLLL", await GlobalManager.Instance.GetPlayersCount(host.game_id), 0,2, 389, 255, 2, 0, 2, 0, 0, 0, 0, 0, 0);
         FPacket response = new(1, (byte)FClientOpcode.PublicInformation, buffer);
-        await host.Send(await response.ToSend()); 
-        await user.Send(await response.ToSend()); 
+        await host.Send(response.ToBytes()); 
+        await user.Send(response.ToBytes()); 
         //host
         var confPath = Path.Combine(
                 AppDomain.CurrentDomain.BaseDirectory,
@@ -67,47 +67,47 @@ public class AutomatchManager
         string[] maps = JsonSerializer.Deserialize<string[]>(jsonText, JsonOptions) ?? [];
         string randomMap = maps[Random.Shared.Next(0, maps.Length)];
         string map = JsonSerializer.Serialize(new { scenario = randomMap });
-        buffer = await Writer.WriteBytes("aQaLBBBs", true, new_lobby.ID, true, 0,0x2, 0x1, 0x0, map);
+        buffer = Writer.WriteBytes("aQaLBBBs", true, new_lobby.ID, true, 0,0x2, 0x1, 0x0, map);
         response = new(1,(byte)FClientOpcode.AutoMatchCreated,buffer);
-        await host.Send(await response.ToSend());
-        buffer = await Writer.WriteBytes("BBHLLQs", 0x66, 0x00, 0, 1233002674,-1872129687, new_lobby.ID, "Relay.1"); // 1233002674 - 178.32.126.73
+        await host.Send(response.ToBytes());
+        buffer = Writer.WriteBytes("BBHLLQs", 0x66, 0x00, 0, 1233002674,-1872129687, new_lobby.ID, "Relay.1"); // 1233002674 - 178.32.126.73
         response = new(1, (byte)FClientOpcode.SystemMessage_2, buffer);
-        await host.Send(await response.ToSend());
-        buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.MessageHostChanged, StatusCode.Success, 46074, 2, -1, new_lobby.ID);
+        await host.Send(response.ToBytes());
+        buffer = Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.MessageHostChanged, StatusCode.Success, 46074, 2, -1, new_lobby.ID);
         response = new(1, (byte)FClientOpcode.LobbyMessage, buffer);
-        await host.Send(await response.ToSend());
-        buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.LobbyEnterFinished, StatusCode.Success, 46074, host.roomKeyID, -1, new_lobby.ID);
+        await host.Send(response.ToBytes());
+        buffer = Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.LobbyEnterFinished, StatusCode.Success, 46074, host.roomKeyID, -1, new_lobby.ID);
         response = new(1, (byte)FClientOpcode.LobbyMessage, buffer);
-        await host.Send(await response.ToSend());
-        buffer = await Writer.WriteBytes("BBHQLQ", LobbyCommandsClient.Connect, StatusCode.Success, 0, new_lobby.ID, user.roomKeyID, user.EugenID);
+        await host.Send(response.ToBytes());
+        buffer = Writer.WriteBytes("BBHQLQ", LobbyCommandsClient.Connect, StatusCode.Success, 0, new_lobby.ID, user.roomKeyID, user.EugenID);
         response = new(1, (byte)FClientOpcode.LobbyMessage, buffer);
-        await host.Send(await response.ToSend());
+        await host.Send(response.ToBytes());
         response = new(1, (byte)FClientOpcode.Unknown, [0x0,0x0,0x0,0x0]);
-        await host.Send(await response.ToSend());
+        await host.Send(response.ToBytes());
         // user
-        buffer = await Writer.WriteBytes("aQaLBBBs", true, new_lobby.ID, false, 1,0x2, 0x1, 0x0, map); 
+        buffer = Writer.WriteBytes("aQaLBBBs", true, new_lobby.ID, false, 1,0x2, 0x1, 0x0, map); 
         response = new(1,(byte)FClientOpcode.AutoMatchCreated,buffer);
-        await user.Send(await response.ToSend());
-        buffer = await Writer.WriteBytes("BBHQLQ", LobbyCommandsClient.Connect, StatusCode.Success, 0, new_lobby.ID, new_lobby.Host.roomKeyID, new_lobby.Host.EugenID);
+        await user.Send(response.ToBytes());
+        buffer = Writer.WriteBytes("BBHQLQ", LobbyCommandsClient.Connect, StatusCode.Success, 0, new_lobby.ID, new_lobby.Host.roomKeyID, new_lobby.Host.EugenID);
         response = new(1, (byte)FClientOpcode.LobbyMessage, buffer);
-        await user.Send(await response.ToSend());
-        buffer = await Writer.WriteBytes("BBHLLQs", 0x66, 0x00, 0, 1233002674,-1872129687, new_lobby.ID, "Relay.1"); // 1233002674 - 178.32.126.73
+        await user.Send(response.ToBytes());
+        buffer = Writer.WriteBytes("BBHLLQs", 0x66, 0x00, 0, 1233002674,-1872129687, new_lobby.ID, "Relay.1"); // 1233002674 - 178.32.126.73
         response = new(1, (byte)FClientOpcode.SystemMessage_2, buffer);
-        await user.Send(await response.ToSend());
-        buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.MessageHostChanged, StatusCode.Success, 46074, 2, -1, new_lobby.ID);
+        await user.Send(response.ToBytes());
+        buffer = Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.MessageHostChanged, StatusCode.Success, 46074, 2, -1, new_lobby.ID);
         response = new(1, (byte)FClientOpcode.LobbyMessage, buffer);
-        await user.Send(await response.ToSend());
-        buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.LobbyEnterFinished, StatusCode.Success, 46074, user.roomKeyID, -1, new_lobby.ID);
+        await user.Send(response.ToBytes());
+        buffer = Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.LobbyEnterFinished, StatusCode.Success, 46074, user.roomKeyID, -1, new_lobby.ID);
         response = new(1, (byte)FClientOpcode.LobbyMessage, buffer);
-        await user.Send(await response.ToSend());
+        await user.Send(response.ToBytes());
         response = new(1, (byte)FClientOpcode.Unknown, [0x0,0x0,0x0,0x0]);
-        await user.Send(await response.ToSend());
-        buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.JoinLobbyFinished, StatusCode.Success, 0, 2, 1, new_lobby.ID); 
+        await user.Send(response.ToBytes());
+        buffer = Writer.WriteBytes("BBHLLQ", SystemMessageType.JoinLobbyFinished, StatusCode.Success, 0, 2, 1, new_lobby.ID); 
         response = new(1, (byte)FClientOpcode.SystemMessage, buffer);
-        await user.Send(await response.ToSend());
-        buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.JoinLobbyFinished, StatusCode.Success, 0, 4, 1, new_lobby.ID); 
+        await user.Send(response.ToBytes());
+        buffer = Writer.WriteBytes("BBHLLQ", SystemMessageType.JoinLobbyFinished, StatusCode.Success, 0, 4, 1, new_lobby.ID); 
         response = new(1, (byte)FClientOpcode.SystemMessage, buffer);
-        await host.Send(await response.ToSend());
+        await host.Send(response.ToBytes());
     }
     public async Task RemoveFromAutomatch(Session session)
     {

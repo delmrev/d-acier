@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+
 public class FPacket
 {
     public byte Opcode;
@@ -7,32 +9,35 @@ public class FPacket
     public byte[] payload;
     public FPacket(byte[] bytes)
     {
-        using MemoryStream stream = new(bytes);
-        using BinaryReader reader = new(stream);
-        Opcode = reader.ReadByte();
-        channel = Reader.ReadInt32Be(reader);
-        PayloadLength = Reader.ReadInt16Be(reader);
-        fOpcode = reader.ReadByte();
-        payload = reader.ReadBytes(PayloadLength-1);
+        ReadOnlySpan<byte> span = bytes;
+        Opcode = span[0];
+        channel = BinaryPrimitives.ReadInt32BigEndian(span[1..5]);
+        PayloadLength = BinaryPrimitives.ReadUInt16BigEndian(span[5..7]);
+        fOpcode = span[7];
+        int payloadSize = PayloadLength - 1;
+        payload = span.Slice(8, payloadSize).ToArray();
     }
-    public FPacket(int channel,byte opcode, List<byte> payload)
+    public FPacket(int channel,byte opcode, byte[] payload)
     {
         fOpcode = opcode;
         this.channel = channel;
         this.payload = [..payload];
-        PayloadLength = (ushort)payload.Count;
+        PayloadLength = (ushort)payload.Length;
         PayloadLength++;
     }
-    public async Task<List<byte>> ToSend()
+    public byte[] ToBytes()
     {
-        var buffer = await Writer.WriteBytes("BIHB",
-        0x66,
-        channel,
-        PayloadLength,
-        fOpcode
-        );
-        buffer.AddRange(payload);
-        buffer.InsertRange(0,await Writer.WriteBytes("H",buffer.Count));
+        int size = 7 + PayloadLength;
+        byte[] buffer = new byte[2 + size];
+        Span<byte> span = buffer;
+        BinaryPrimitives.WriteUInt16BigEndian(span, (ushort)size);
+        span = span[2..];
+        span[0] = 0x66;
+        BinaryPrimitives.WriteInt32BigEndian(span[1..5], channel);
+        BinaryPrimitives.WriteUInt16BigEndian(span[5..7],PayloadLength);
+        span[7] = fOpcode;
+        span = span[8..];
+        payload.CopyTo(span);
         return buffer;
     }
 }

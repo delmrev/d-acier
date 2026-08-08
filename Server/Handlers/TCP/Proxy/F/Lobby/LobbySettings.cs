@@ -13,7 +13,7 @@ namespace EugnetProtocol.TCP.Proxy.F
                 Log.Error("Try to get current room but dont have current room");
                 return;
             }
-            values = await Reader.ReadBytes(fPacket.payload, "QIBc");
+            values = Reader.ReadBytes(fPacket.payload, "QIBc");
             if((byte)values[2] == 0x01) // if flag, dont save
             {
                 Log.Debug($"Dont save; id: {values[1]}, value: {values[3]}");
@@ -38,11 +38,11 @@ namespace EugnetProtocol.TCP.Proxy.F
                 }
                 session.currentRoom.RoomSettings[id] = value;
             }
-            var buf = await Writer.WriteBytes("QIBc",session.currentRoom.ID,id,(byte)values[2],value);
+            var buf = Writer.WriteBytes("QIBc",session.currentRoom.ID,id,(byte)values[2],value);
             FPacket response = new(fPacket.channel,(byte)FClientOpcode.LobbyInfo,buf);
             foreach(var user in session.currentRoom.Users)
             {
-                await user.Value.Send(await response.ToSend());
+                await user.Value.Send(response.ToBytes());
             }
         }
     }

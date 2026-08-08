@@ -6,16 +6,16 @@ namespace EugnetProtocol.TCP.Proxy.F
     {
         public async Task Process(FPacket fPacket, Session session)
         {
-            var data = await Reader.ReadBytes(fPacket.payload,"BBHLLQ");
+            var data = Reader.ReadBytes(fPacket.payload,"BBHLLQ");
             FPacket response;
-            List<byte> buffer;
+            byte[] buffer;
             long roomID = (long)data[5];
             Lobby? room = await LobbyManager.Instance.GetRoom(roomID,session.game_id);
             if(room == null)
             {
-                buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.OnLobbyEntered, StatusCode.NotAvailable, 0, -1, 0, roomID);
+                buffer = Writer.WriteBytes("BBHLLQ", SystemMessageType.OnLobbyEntered, StatusCode.NotAvailable, 0, -1, 0, roomID);
                 response = new(fPacket.channel, (byte)FClientOpcode.SystemMessage, buffer);
-                await session.Send(await response.ToSend());
+                await session.Send(response.ToBytes());
                 return;
             }
             int place = -1;
@@ -29,9 +29,9 @@ namespace EugnetProtocol.TCP.Proxy.F
             }
             if(place == -1)
             {
-                buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.OnLobbyEntered, StatusCode.PendingClientListFull, 0, -1, 0, room.ID);
+                buffer = Writer.WriteBytes("BBHLLQ", SystemMessageType.OnLobbyEntered, StatusCode.PendingClientListFull, 0, -1, 0, room.ID);
                 response = new(fPacket.channel, (byte)FClientOpcode.SystemMessage, buffer);
-                await session.Send(await response.ToSend());
+                await session.Send(response.ToBytes());
                 return;
             }
             session.roomKeyID = place;
@@ -39,9 +39,9 @@ namespace EugnetProtocol.TCP.Proxy.F
             session.currentRoom = room;
             foreach (var option in room.RoomSettings)
             {
-                var buf = await Writer.WriteBytes("QIBc",roomID,option.Key,0x00,option.Value);
+                var buf = Writer.WriteBytes("QIBc",roomID,option.Key,0x00,option.Value);
                 response = new(fPacket.channel,(byte)FClientOpcode.LobbyInfo,buf);
-                await session.Send(await response.ToSend());
+                await session.Send(response.ToBytes());
             }
             foreach(var user in room.Users)
             {
@@ -49,35 +49,35 @@ namespace EugnetProtocol.TCP.Proxy.F
                 {
                     continue;
                 }
-                buffer = await Writer.WriteBytes("BBHQLQ", LobbyCommandsClient.Connect, StatusCode.Success, 1, room.ID, user.Key, user.Value.EugenID);
+                buffer = Writer.WriteBytes("BBHQLQ", LobbyCommandsClient.Connect, StatusCode.Success, 1, room.ID, user.Key, user.Value.EugenID);
                 response = new(fPacket.channel, (byte)FClientOpcode.LobbyMessage, buffer);
-                await session.Send(await response.ToSend());
+                await session.Send(response.ToBytes());
             }
             
-            buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.OnLobbyEntered, StatusCode.Success, 0, -1, 0, room.ID);
+            buffer = Writer.WriteBytes("BBHLLQ", SystemMessageType.OnLobbyEntered, StatusCode.Success, 0, -1, 0, room.ID);
             response = new(fPacket.channel, (byte)FClientOpcode.SystemMessage, buffer);
-            await session.Send(await response.ToSend());
-            buffer = await Writer.WriteBytes("BBHLLQs", 0x66, StatusCode.Success, 0, 1233002674,-1872129687, room.ID, "Relay.1");
+            await session.Send(response.ToBytes());
+            buffer = Writer.WriteBytes("BBHLLQs", 0x66, StatusCode.Success, 0, 1233002674,-1872129687, room.ID, "Relay.1");
             response = new(fPacket.channel, (byte)FClientOpcode.SystemMessage_2, buffer);
-            await session.Send(await response.ToSend());
-            buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.MessageHostChanged, StatusCode.Success, 14754, room.Host.roomKeyID, -1, room.ID); // h - 0x68
+            await session.Send(response.ToBytes());
+            buffer = Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.MessageHostChanged, StatusCode.Success, 14754, room.Host.roomKeyID, -1, room.ID); // h - 0x68
             response = new(fPacket.channel, (byte)FClientOpcode.LobbyMessage, buffer);
-            await session.Send(await response.ToSend());
-            buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.LobbyEnterFinished,  StatusCode.Success, 14754, session.roomKeyID, -1, room.ID); // j - 0x6A
+            await session.Send(response.ToBytes());
+            buffer = Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.LobbyEnterFinished,  StatusCode.Success, 14754, session.roomKeyID, -1, room.ID); // j - 0x6A
             response = new(fPacket.channel, (byte)FClientOpcode.LobbyMessage, buffer);
-            await session.Send(await response.ToSend());
+            await session.Send(response.ToBytes());
             foreach(var user in room.Users)
             {
                 if(user.Value == session)
                 {
                     continue;
                 }
-                buffer = await Writer.WriteBytes("BBHQLQ", LobbyCommandsClient.Connect, StatusCode.Success, 0, room.ID, session.roomKeyID, session.EugenID);
+                buffer = Writer.WriteBytes("BBHQLQ", LobbyCommandsClient.Connect, StatusCode.Success, 0, room.ID, session.roomKeyID, session.EugenID);
                 response = new(fPacket.channel, (byte)FClientOpcode.LobbyMessage, buffer);
-                await user.Value.Send(await response.ToSend());
-                buffer = await Writer.WriteBytes("BBHLLQ", SystemMessageType.JoinLobbyFinished, StatusCode.Success, 0, session.roomKeyID, 1, room.ID); 
+                await user.Value.Send(response.ToBytes());
+                buffer = Writer.WriteBytes("BBHLLQ", SystemMessageType.JoinLobbyFinished, StatusCode.Success, 0, session.roomKeyID, 1, room.ID); 
                 response = new(fPacket.channel, (byte)FClientOpcode.SystemMessage, buffer);
-                await user.Value.Send(await response.ToSend());
+                await user.Value.Send(response.ToBytes());
             }
             
         }

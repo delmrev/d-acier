@@ -6,10 +6,10 @@ namespace EugnetProtocol.TCP.Proxy.F
     {
         public async Task Process(FPacket fPacket, Session session)
         {
-            var data = await Reader.ReadBytes(fPacket.payload,"BQBBBBQLBB");
-            var buffer = await Writer.WriteBytes("BBHLLQ",0,0,0,0,0,(long)data[6]);
+            var data = Reader.ReadBytes(fPacket.payload,"BQBBBBQLBB");
+            var buffer = Writer.WriteBytes("BBHLLQ",0,0,0,0,0,(long)data[6]);
             FPacket response = new(fPacket.channel,(byte)FClientOpcode.AutoMatchStart,buffer);
-            await session.Send(await response.ToSend());
+            await session.Send(response.ToBytes());
             await AutomatchManager.Instance.AddToAutoMatch(session);
         }
     }

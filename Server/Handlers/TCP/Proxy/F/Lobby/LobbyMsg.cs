@@ -12,7 +12,7 @@ namespace EugnetProtocol.TCP.Proxy.F
             }
             foreach(var user in session.currentRoom.Users)
             {
-                await user.Value.Send(await fPacket.ToSend());
+                await user.Value.Send(fPacket.ToBytes());
             }
         }
     }

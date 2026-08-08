@@ -10,19 +10,19 @@ namespace EugnetProtocol.TCP.Proxy.F
             {
                 return;
             }
-            var read = await Reader.ReadBytes(packet.payload,"BBHLLQ");
+            var read = Reader.ReadBytes(packet.payload,"BBHLLQ");
             if((long)read[5] != session.currentRoom.ID)
             {
-                var buf = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.Disconnect, StatusCode.Success, 14754, session.roomKeyID, 46117438, (long)read[5]);
+                var buf = Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.Disconnect, StatusCode.Success, 14754, session.roomKeyID, 46117438, (long)read[5]);
                 FPacket response_2 = new(packet.channel,(byte)FClientOpcode.LobbyMessage, buf);
-                await session.Send(await response_2.ToSend());
+                await session.Send(response_2.ToBytes());
                 return;
             }
-            var buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.Disconnect, StatusCode.Success, 14754, session.roomKeyID, 46117438, session.currentRoom.ID);
+            var buffer = Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.Disconnect, StatusCode.Success, 14754, session.roomKeyID, 46117438, session.currentRoom.ID);
             FPacket response = new(packet.channel,(byte)FClientOpcode.LobbyMessage, buffer);
             foreach(var user in session.currentRoom.Users)
             {
-                await user.Value.Send(await response.ToSend());
+                await user.Value.Send(response.ToBytes());
             }
             session.currentRoom.Users.Remove(session.roomKeyID);
             if(session.currentRoom.Users.Count == 0)
@@ -38,11 +38,11 @@ namespace EugnetProtocol.TCP.Proxy.F
                     session.currentRoom.Host = user.Value;
                     break;
                 }
-                buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.MessageHostChanged, StatusCode.Success, 14754, id, 46117438, session.currentRoom.ID);
+                buffer = Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.MessageHostChanged, StatusCode.Success, 14754, id, 46117438, session.currentRoom.ID);
                 response = new(packet.channel,(byte)FClientOpcode.LobbyMessage, buffer);
                 foreach(var user in session.currentRoom.Users)
                 {
-                    await user.Value.Send(await response.ToSend());
+                    await user.Value.Send(response.ToBytes());
                 }   
                 session.currentRoom = null;
             } else
@@ -52,7 +52,7 @@ namespace EugnetProtocol.TCP.Proxy.F
             if(session.channels.TryGetValue("Relay.1", out int value))
             {
                 GPacket gPacket = new(value);
-                await session.Send(await gPacket.ToSend());
+                await session.Send(gPacket.ToBytes());
                 session.channels.Remove("Relay.1");
             }
             session.isConnectedToRelay = false;

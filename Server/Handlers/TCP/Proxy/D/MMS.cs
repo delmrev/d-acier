@@ -7,17 +7,15 @@ namespace EugnetProtocol.TCP.Proxy.D
     {
         public async Task Process(DPacket dPacket, Session session)
         {
-            var buffer = await Writer.WriteBytes("BII", (byte)'d', dPacket.channel, 1);
-            buffer.InsertRange(0,await Writer.WriteBytes("H",buffer.Count));
-            await session.Send(buffer);
-            buffer = await Writer.WriteBytes("IBQS", 71, 0x00, session.EugenID, GetMMSJson(session));
+            await session.Send(Writer.WriteBytes("HBII",9,(byte)'d', dPacket.channel, 1));
+            List<byte> buffer = [..Writer.WriteBytes("IBQS", 71, 0x00, session.EugenID, GetMMSJson(session))];
             buffer.AddRange(new byte[4]);
             byte[] key = new byte[128];
             Random random = new();
             random.NextBytes(key);
             buffer.AddRange(key);
-            FPacket fResponce = new(1, (byte)FClientOpcode.MMS_MSG_INIT, buffer);
-            await session.Send(await fResponce.ToSend());
+            FPacket fResponce = new(1, (byte)FClientOpcode.MMS_MSG_INIT, [.. buffer]);
+            await session.Send(fResponce.ToBytes());
             session.channels.TryAdd("mms", 1);
         }
         private string GetMMSJson(Session session)

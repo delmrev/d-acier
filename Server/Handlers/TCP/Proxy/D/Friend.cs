@@ -9,13 +9,11 @@ namespace EugnetProtocol.TCP.Proxy.D
             if (session.channels.TryGetValue("friend", out int value))
             {
                 GPacket gPacket = new(value);
-                await session.Send(await gPacket.ToSend());
+                await session.Send(gPacket.ToBytes());
             }
-            var buffer = await Writer.WriteBytes("BII", (byte)'d', dPacket.channel, dPacket.channel);
-            buffer.InsertRange(0,await Writer.WriteBytes("H",buffer.Count));
-            await session.Send(buffer);
-            var fpacket = new FPacket(dPacket.channel, (byte)FClientOpcode.CONTINUE, await Writer.WriteBytes("B", StatusCode.Success));
-            await session.Send(await fpacket.ToSend());
+            await session.Send(Writer.WriteBytes("HBII",9,(byte)'d', dPacket.channel, dPacket.channel));
+            var fpacket = new FPacket(dPacket.channel, (byte)FClientOpcode.CONTINUE, [(byte)StatusCode.Success]);
+            await session.Send(fpacket.ToBytes());
             if (!session.channels.TryAdd(dPacket.command, dPacket.channel))
             {
                 session.channels[dPacket.command] = dPacket.channel;

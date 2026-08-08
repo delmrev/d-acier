@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Reflection;
 using System.Text;
 using Database;
@@ -12,32 +11,50 @@ namespace EugnetProtocol.TCP.Proxy.F
         private static readonly Logger Log = LogManager.GetCurrentClassLogger();
         public async Task Process(FPacket fPacket, Session session)
         {
-            using MemoryStream stream = new(fPacket.payload);
-            using BinaryReader reader = new(stream);
-            var buffer = await Reader.ReadBytes(reader, "BII");
-            var stats = await DatabaseManager.GetData(session.EugenID, session.game_id);
-            for (int i = 0; i < (int)buffer[1]; i++)
+            int count;
+            (string? str, string? valStr)[] items;
+
             {
-                var tmp = await Reader.ReadBytes(reader, "SS");
-                if (tmp[0] != null && tmp[0] is string str)
+                ReadOnlySpan<byte> span = fPacket.payload.AsSpan();
+                var buffer = Reader.ReadBytes(ref span, "BII");
+                count = (int)buffer[1];
+                items = new (string?, string?)[count];
+
+                for (int i = 0; i < count; i++)
+                {
+                    var tmp = Reader.ReadBytes(ref span, "SS");
+                    items[i] = (tmp[0] as string, tmp[1] as string);
+                }
+            }
+            var stats = await DatabaseManager.GetData(session.EugenID, session.game_id);
+
+            for (int i = 0; i < count; i++)
+            {
+                var (str, valStr) = items[i];
+
+                if (str != null)
                 {
                     if (str == "_rev" || str == "@name" || str == "@avatar")
                     {
-                        await UpdateU0(reader,session,fPacket);
+                        await UpdateU0(session, fPacket);
                         return;
                     }
-                    var value = int.Parse((string)tmp[1]);
-                    if(stats.Count == 0)
+
+                    var value = int.Parse(valStr!);
+
+                    if (stats.Count == 0)
                     {
                         stats.Add(str, value);
-                        await DatabaseManager.ChangeOrAddStat(session.EugenID,session.game_id,str,value);
+                        await DatabaseManager.ChangeOrAddStat(session.EugenID, session.game_id, str, value);
                         continue;
                     }
+
                     if (!stats.TryAdd(str, value))
                     {
                         stats[str] = value;
                     }
-                    await DatabaseManager.ChangeOrAddStat(session.EugenID,session.game_id,str,value);
+
+                    await DatabaseManager.ChangeOrAddStat(session.EugenID, session.game_id, str, value);
                 }
                 else
                 {
@@ -45,7 +62,7 @@ namespace EugnetProtocol.TCP.Proxy.F
                 }
             }
             byte[] bytes = new byte[32]; // Well, well, Eugens thanks for #v
-            var buf = await Writer.WriteBytes("QQsQQLL", session.EugenID, -1, "", -1, -1, session.game_id, stats.Count);
+            List<byte> buf = [.. Writer.WriteBytes("QQsQQLL", session.EugenID, -1, "", -1, -1, session.game_id, stats.Count)];
             foreach (var stat in stats)
             {
                 var strbytes = Encoding.UTF8.GetBytes(stat.Key);
@@ -55,47 +72,61 @@ namespace EugnetProtocol.TCP.Proxy.F
                 }
                 buf.AddRange(bytes);
                 Array.Clear(bytes, 0, bytes.Length);
-                buf.AddRange(await Writer.WriteBytes("S", $"{stat.Value}"));
+                buf.AddRange(Writer.WriteBytes("S", $"{stat.Value}"));
             }
-            FPacket responce = new(fPacket.channel, (byte)FClientOpcode.StatsResult, await Writer.WriteBytes("aa", true, false));
-            await session.Send(await responce.ToSend());
-            responce = new(fPacket.channel, (byte)FClientOpcode.Stats, buf);
-            await session.Send(await responce.ToSend());
+            FPacket responce = new(fPacket.channel, (byte)FClientOpcode.StatsResult, Writer.WriteBytes("aa", true, false));
+            await session.Send(responce.ToBytes());
+            responce = new(fPacket.channel, (byte)FClientOpcode.Stats, [.. buf]);
+            await session.Send(responce.ToBytes());
         }
-        private static async Task UpdateU0(BinaryReader reader, Session session, FPacket fPacket)
+
+        private static async Task UpdateU0(Session session, FPacket fPacket)
         {
-            reader.BaseStream.Position = 0;
-            var buffer = await Reader.ReadBytes(reader, "BII");
+            int count;
+            (string? str, string? valStr)[] items;
+            {
+                ReadOnlySpan<byte> span = fPacket.payload.AsSpan();
+                var buffer = Reader.ReadBytes(ref span, "BII");
+                count = (int)buffer[1];
+                items = new (string?, string?)[count];
+
+                for (int i = 0; i < count; i++)
+                {
+                    var tmp = Reader.ReadBytes(ref span, "SS");
+                    items[i] = (tmp[0] as string, tmp[1] as string);
+                }
+            }
             var stats = await DatabaseManager.GetU0(session.EugenID);
             Type type = typeof(u0);
             var propertiesCache = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
                 .ToDictionary(p => p.Name.ToLower(), p => p);
 
-            for (int i = 0; i < (int)buffer[1]; i++)
+            for (int i = 0; i < count; i++)
             {
-                var tmp = await Reader.ReadBytes(reader,"SS");
-                if(tmp[0] != null && tmp[0] is string str)
+                var (str, valStr) = items[i];
+                if (str != null)
                 {
                     str = str.Replace("@", "").ToLower();
-
-                    if(!propertiesCache.TryGetValue(str, out var value))
+                    if (!propertiesCache.TryGetValue(str, out var value))
                     {
                         Log.Error($"Dont exist value: {str}");
                         continue;
                     }
-                    value.SetValue(stats, (string)tmp[1]);
-                } else
+                    value.SetValue(stats, valStr);
+                }
+                else
                 {
                     Log.Error("Empty string!");
                 }
             }
             await DatabaseManager.UpdateData(stats);
             byte[] bytes = new byte[32]; // Well, well, Eugens thanks for #v
-            var fields = type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(f => f.Name != "SteamID" && f.Name != "EugenID" && f.Name != "Rev");
-            var buf = await Writer.WriteBytes("QQsQQLL",session.EugenID,-1,"",-1,-1,0, fields.Count());
-            foreach(var field in fields)
+            var fields = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(f => f.Name != "SteamID" && f.Name != "EugenID" && f.Name != "Rev");
+
+            List<byte> buf = [.. Writer.WriteBytes("QQsQQLL", session.EugenID, -1, "", -1, -1, 0, fields.Count())];
+            foreach (var field in fields)
             {
-                Log.Debug("S");
                 var strbytes = Encoding.UTF8.GetBytes($"@{field.Name.ToLower()}");
                 for (int i = 0; i < strbytes.Length; i++)
                 {
@@ -103,12 +134,12 @@ namespace EugnetProtocol.TCP.Proxy.F
                 }
                 buf.AddRange(bytes);
                 Array.Clear(bytes, 0, bytes.Length);
-                buf.AddRange(await Writer.WriteBytes("S",$"{field.GetValue(stats)}"));
-            } 
-            FPacket responce = new(fPacket.channel,(byte)FClientOpcode.StatsResult, await Writer.WriteBytes("aa", true, true));
-            await session.Send(await responce.ToSend());
-            responce = new(fPacket.channel,(byte)FClientOpcode.Stats, buf);
-            await session.Send(await responce.ToSend());
+                buf.AddRange(Writer.WriteBytes("S", $"{field.GetValue(stats)}"));
+            }
+            FPacket response = new(fPacket.channel, (byte)FClientOpcode.StatsResult, Writer.WriteBytes("aa", true, true));
+            await session.Send(response.ToBytes());
+            response = new(fPacket.channel, (byte)FClientOpcode.Stats, [.. buf]);
+            await session.Send(response.ToBytes());
         }
     }
 }

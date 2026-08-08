@@ -8,7 +8,7 @@ namespace EugnetProtocol.TCP.Proxy.F
         private static readonly Logger Log = LogManager.GetCurrentClassLogger();
         public async Task Process(FPacket fPacket, Session session)
         {
-            var read = await Reader.ReadBytes(fPacket.payload, "Q");
+            var read = Reader.ReadBytes(fPacket.payload, "Q");
             if(session.currentRoom != null)
             {
                 Session? user = null;
@@ -28,7 +28,7 @@ namespace EugnetProtocol.TCP.Proxy.F
                         Log.Info($"Connect message: {session.EugenID} -> {user.EugenID}");
                     }
                     BinaryPrimitives.WriteInt64BigEndian(fPacket.payload.AsSpan(0, 8), session.EugenID);
-                    await user.Send(await fPacket.ToSend());
+                    await user.Send(fPacket.ToBytes());
                 } else
                 {
                     Log.Error($"User dont found: {read[0]}");

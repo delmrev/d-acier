@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using Database;
 using EugnetProtocol.Common.Interfaces;
 using NLog;
@@ -8,9 +9,8 @@ namespace EugnetProtocol.TCP.Proxy
         private static readonly Logger Log = LogManager.GetCurrentClassLogger();
         public async Task Process(byte[] IncomeData, Session session) 
         {
-            using MemoryStream m = new(IncomeData);
-            using BinaryReader reader = new(m);
-            var data = await Reader.ReadBytes(reader,"BIISSBS");
+            ReadOnlySpan<byte> span = IncomeData.AsSpan();
+            var data = Reader.ReadBytes(ref span,"BIISSBS");
             long steamID = long.Parse((string)data[6]);
             var user = await DatabaseManager.GetU0BySteamID(steamID);
             byte statusCode = (byte)StatusCode.Success;
@@ -27,9 +27,12 @@ namespace EugnetProtocol.TCP.Proxy
                 } else if(clientInfo.Password != (string)data[4])
                 {
                     statusCode = (byte)StatusCode.IncorrectIdentification;
-                    var buf = await Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, -1, (long)0, 60, statusCode, (long)0);
-                    buf.InsertRange(0,await Writer.WriteBytes("H",buf.Count));
-                    await session.Send(buf);
+
+                    var buf = Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, -1, (long)0, 60, statusCode, (long)0);
+                    byte[] packet = new byte[2+buf.Length];
+                    BinaryPrimitives.WriteUInt16BigEndian(packet.AsSpan(),(ushort)buf.Length);
+                    buf.CopyTo(packet.AsSpan(2));
+                    await session.Send(packet);
                     return;
                 }
                 var stat = await DatabaseManager.GetData(user.EugenID,gameid);
@@ -40,9 +43,11 @@ namespace EugnetProtocol.TCP.Proxy
                 session.game_id = gameid;
                 session.EugenID = user.EugenID;
                 session.Name = user.Name;
-                var buffer = await Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, user.EugenID, (long)0, 60, statusCode, (long)0);
-                buffer.InsertRange(0,await Writer.WriteBytes("H",buffer.Count));
-                await session.Send(buffer);
+                var buffer = Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, user.EugenID, (long)0, 60, statusCode, (long)0);
+                byte[] packet_2 = new byte[2+buffer.Length];
+                BinaryPrimitives.WriteUInt16BigEndian(packet_2.AsSpan(),(ushort)buffer.Length);
+                buffer.CopyTo(packet_2.AsSpan(2));
+                await session.Send(packet_2);
                 Log.Debug($"Packet: c <-");
             } else
             {
@@ -66,9 +71,11 @@ namespace EugnetProtocol.TCP.Proxy
                 session.game_id = gameid;
                 session.EugenID = newEugid;
                 session.Name = (string)data[3];
-                var buffer = await Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, newEugid, (long)0, 60, statusCode, (long)0);
-                buffer.InsertRange(0,await Writer.WriteBytes("H",buffer.Count));
-                await session.Send(buffer);
+                var buffer = Writer.WriteBytes("BQQIBQ", PacketType.CONNECT_SERVER, newEugid, (long)0, 60, statusCode, (long)0);
+                byte[] packet = new byte[2+buffer.Length];
+                BinaryPrimitives.WriteUInt16BigEndian(packet.AsSpan(),(ushort)buffer.Length);
+                buffer.CopyTo(packet.AsSpan(2));
+                await session.Send(packet);
                 Log.Debug($"Packet: c <-");
             }
         }

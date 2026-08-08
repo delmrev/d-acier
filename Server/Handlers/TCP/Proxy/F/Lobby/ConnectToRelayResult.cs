@@ -10,15 +10,15 @@ namespace EugnetProtocol.TCP.Proxy.F
             {
                 return;
             }
-            var buffer = await Writer.WriteBytes("B", StatusCode.Success);
+            var buffer = Writer.WriteBytes("B", StatusCode.Success);
             FPacket fresponse = new(fPacket.channel,(byte)FClientOpcode.CONTINUE,buffer);
-            await session.Send(await fresponse.ToSend());
+            await session.Send(fresponse.ToBytes());
             session.isConnectedToRelay = true;
             var channel = session.channels["Relay.1"];
             while (session.QueuedPackets.TryDequeue(out var packet))
             {
                 packet.channel = channel;
-                await session.Send(await packet.ToSend());
+                await session.Send(packet.ToBytes());
             }
         }
     }

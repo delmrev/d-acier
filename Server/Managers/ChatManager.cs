@@ -46,7 +46,7 @@ public class ChatManager
         } else {
             for (int i = 0; i < chat.users.Count; i++)
             {
-                await chat.users[i].Send(await response.ToSend());
+                await chat.users[i].Send(response.ToBytes());
             }
         }
     }

@@ -6,7 +6,7 @@ namespace EugnetProtocol.TCP.Proxy.F
     {
         public async Task Process(FPacket fPacket, Session session)
         {  
-            var (success, output) = await Reader.TryReadBytes(fPacket.payload, "IIBBHIII");
+            var (success, output) = Reader.TryReadBytes(fPacket.payload, "IIBBHIII");
             session.unk_1 = (int)output[0];
             session.unk_2 = (int)output[1];
         }

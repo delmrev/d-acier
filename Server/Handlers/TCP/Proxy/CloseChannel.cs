@@ -8,14 +8,14 @@ namespace EugnetProtocol.TCP.Proxy
         private static readonly Logger Log = LogManager.GetCurrentClassLogger();
         public async Task Process(byte[] data, Session session)
         {
-            var read = await Reader.ReadBytes(data,"BI");
+            var read = Reader.ReadBytes(data,"BI");
             if((int)read[1] == 1)
             {
                 session.channels.Remove("mms");
                 foreach(var value in session.channels)
                 {
                     GPacket gPacket = new(value.Value);
-                    await session.Send(await gPacket.ToSend());
+                    await session.Send(gPacket.ToBytes());
                 }
                 session.channels.Clear();
             } else

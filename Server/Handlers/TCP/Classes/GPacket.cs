@@ -4,23 +4,17 @@ public class GPacket
     public int channel;
     public GPacket(byte[] bytes)
     {
-        using MemoryStream stream = new(bytes);
-        using BinaryReader reader = new(stream);
-        Opcode = reader.ReadByte();
-        channel = Reader.ReadInt32Be(reader);
+        var values = Reader.ReadBytes(bytes,"BI");
+        Opcode = (byte)values[0];
+        channel = (int)values[1];
     }
     public GPacket(int channel)
     {
         this.channel = channel;
         Opcode = 0x67;
     }
-    public async Task<List<byte>> ToSend()
+    public byte[] ToBytes()
     {
-        var buffer = await Writer.WriteBytes("BI",
-        Opcode,
-        channel
-        );
-        buffer.InsertRange(0,await Writer.WriteBytes("H",buffer.Count));
-        return buffer;
+        return Writer.WriteBytes("HBI",5,Opcode,channel);
     }
 }

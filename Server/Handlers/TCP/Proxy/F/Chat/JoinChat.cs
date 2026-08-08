@@ -6,14 +6,14 @@ namespace EugnetProtocol.TCP.Proxy.F
     {
         public async Task Process(FPacket fPacket, Session session)
         {
-            var data = await Reader.ReadBytes(fPacket.payload, "IS"); // gameid, chatKey
+            var data = Reader.ReadBytes(fPacket.payload, "IS"); // gameid, chatKey
             var chat = await ChatManager.Instance.GetChat((string)data[1], (int)data[0]);
-            var buffer = await Writer.WriteBytes("Is", chat.users.Count, (string)data[1]);
+            var buffer = Writer.WriteBytes("Is", chat.users.Count, (string)data[1]);
             FPacket response = new(fPacket.channel, (byte)FClientOpcode.BM_CHAT_ROOM_INFO, buffer);
-            await session.Send(await response.ToSend());
-            buffer = await Writer.WriteBytes("Qs", session.EugenID, (string)data[1]);
+            await session.Send(response.ToBytes());
+            buffer = Writer.WriteBytes("Qs", session.EugenID, (string)data[1]);
             response = new(fPacket.channel, (byte)FClientOpcode.BM_CHAT_JOIN, buffer);
-            await session.Send(await response.ToSend());
+            await session.Send(response.ToBytes());
             await ChatManager.Instance.JoinChat((string)data[1],(int)data[0],session);
             session.currentChat = chat;
         }

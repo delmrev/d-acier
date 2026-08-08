@@ -79,7 +79,7 @@ public class Session : IAsyncDisposable
         currentRoom?.Users.Remove(roomKeyID);
         if(currentRoom != null){
             LeaveLobby lobby = new();
-            FPacket fPacket = new(1,0x00,await Writer.WriteBytes("BBHLLQ",0x0,0x0,0,0,0,currentRoom.ID));
+            FPacket fPacket = new(1,0x00,Writer.WriteBytes("BBHLLQ",0x0,0x0,0,0,0,currentRoom.ID));
             await lobby.Process(fPacket, this);
             currentRoom = null;
         }

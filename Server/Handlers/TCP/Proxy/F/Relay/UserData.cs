@@ -8,7 +8,7 @@ namespace EugnetProtocol.TCP.Proxy.F
         private static readonly Logger Log = LogManager.GetCurrentClassLogger();
         public async Task Process(FPacket fPacket, Session session)
         {
-            var data = await Reader.ReadBytes(fPacket.payload,"Q");
+            var data = Reader.ReadBytes(fPacket.payload,"Q");
             long eugid = (long)data[0];
             if(session.currentRoom != null)
             {
@@ -31,7 +31,7 @@ namespace EugnetProtocol.TCP.Proxy.F
                     try
                     {
                         fPacket.channel = user.channels["Relay.1"];
-                        await user.Send(await fPacket.ToSend());
+                        await user.Send(fPacket.ToBytes());
                     }
                     catch
                     {

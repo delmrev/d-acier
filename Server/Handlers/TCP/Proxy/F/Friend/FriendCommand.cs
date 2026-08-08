@@ -6,9 +6,9 @@ namespace EugnetProtocol.TCP.Proxy.F
     {
         public async Task Process(FPacket fPacket, Session session)
         {
-            List<byte> buffer = await Writer.WriteBytes("BBIQQI", 0x09, 0x00, -1, -1, session.EugenID, -1);
+            byte[] buffer = Writer.WriteBytes("BBIQQI", 0x09, 0x00, -1, -1, session.EugenID, -1);
             FPacket response = new(fPacket.channel, (byte)FClientOpcode.BM_TEAM_COMMAND, buffer);
-            await session.Send(await response.ToSend());
+            await session.Send(response.ToBytes());
         }
     }
 }

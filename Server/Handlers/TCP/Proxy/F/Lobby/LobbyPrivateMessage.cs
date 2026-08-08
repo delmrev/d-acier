@@ -14,7 +14,7 @@ namespace EugnetProtocol.TCP.Proxy.F
             foreach(var user in session.currentRoom.Users)
             {
                 Log.Debug("Change visibility");
-                await user.Value.Send(await fPacket.ToSend());
+                await user.Value.Send(fPacket.ToBytes());
             }
         }
     }

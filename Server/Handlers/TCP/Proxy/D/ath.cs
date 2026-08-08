@@ -9,11 +9,9 @@ namespace EugnetProtocol.TCP.Proxy.D
             if (session.channels.TryGetValue(dPacket.command, out int value))
             {
                 GPacket gPacket = new(value);
-                await session.Send(await gPacket.ToSend());
+                await session.Send(gPacket.ToBytes());
             }
-            var buffer = await Writer.WriteBytes("BII", (byte)'d', dPacket.channel, 4);
-            buffer.InsertRange(0,await Writer.WriteBytes("H",buffer.Count));
-            await session.Send(buffer);
+            await session.Send(Writer.WriteBytes("HBII",9,(byte)'d', dPacket.channel, dPacket.channel));
             if (!session.channels.TryAdd(dPacket.command, dPacket.channel))
             {
                 session.channels[dPacket.command] = dPacket.channel;

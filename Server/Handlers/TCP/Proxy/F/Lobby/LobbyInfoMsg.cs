@@ -11,7 +11,7 @@ namespace EugnetProtocol.TCP.Proxy.F
             {
                 return;
             }
-            var data = await Reader.ReadBytes(fPacket.payload, "BBHLLQ");
+            var data = Reader.ReadBytes(fPacket.payload, "BBHLLQ");
             switch ((byte)data[0]){
                 case 0x46: // F disconnect
                     await _leaveLobby.Process(fPacket,session);
@@ -20,21 +20,21 @@ namespace EugnetProtocol.TCP.Proxy.F
                     int userId = (int)data[3];
                     session.currentRoom.Users[userId].currentRoom = null;
                     session.currentRoom.Users.Remove(userId);
-                    var buffer = await Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.Kick_2, StatusCode.Success, 14754, userId, 46117438, (long)data[5]);
+                    var buffer = Writer.WriteBytes("BBHLLQ", LobbyCommandsClient.Kick_2, StatusCode.Success, 14754, userId, 46117438, (long)data[5]);
                     FPacket response = new(fPacket.channel,(byte)FClientOpcode.LobbyMessage, buffer);
                     foreach(var user in session.currentRoom.Users)
                     {
-                        await user.Value.Send(await response.ToSend());
+                        await user.Value.Send(response.ToBytes());
                     }   
                     if(session.currentRoom.Users[userId].channels.TryGetValue("Relay.1", out int value))
                     {
                         GPacket gPacket = new(value);
-                        await session.currentRoom.Users[userId].Send(await gPacket.ToSend());
+                        await session.currentRoom.Users[userId].Send(gPacket.ToBytes());
                     }
                     if(session.currentRoom.Users[userId].channels.TryGetValue("ath", out int value1))
                     {
                         GPacket gPacket = new(value1);
-                        await session.currentRoom.Users[userId].Send(await gPacket.ToSend());
+                        await session.currentRoom.Users[userId].Send(gPacket.ToBytes());
                     }
                 break;
             }

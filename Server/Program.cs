@@ -2,7 +2,6 @@
 using System.Security.Cryptography.X509Certificates;
 using Database;
 using NLog;
-using stungun.common.server;
 
 class Program
 {
@@ -76,22 +75,8 @@ class Program
             // STUN
             var stunTask = Task.Run(async () =>
             {
-                var addresses = Dns.GetHostEntry(Dns.GetHostName())
-                    .AddressList
-                    .Where(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-                    .ToArray();
-
-                foreach (var address in addresses)
-                    Log.Info("Discovered IP: {0}", address);
-
-                var endpoints = addresses
-                    .Select(a => new IPEndPoint(a, config.Server.STUN))
-                    .ToArray();
-
-                var stunUdpServer = new StunUdpServer(endpoints);
-                stunUdpServer.Start(config.Server.STUN);
-
-                Log.Info("STUN server started on {0}", config.Server.STUN);
+                Log.Info("STUN server started");
+                await StunServerManager.Instance.Init(StunConfig.Load());
             });
 
             Log.Info("Starting servers...");

@@ -62,7 +62,7 @@ public static class DatabaseManager
             var result = await _db.Table<ClientInfo>().FirstOrDefaultAsync(t => t.EugenID == EugenID);
             if(result is null)
             {
-                Log.Error("Try to get U0 but dont have account.");
+                Log.Error("Try to get U0 but dont have account. You registered account?");
                 return null;
             }
             return result;
@@ -91,7 +91,7 @@ public static class DatabaseManager
             var result = await _db.Table<u0>().FirstOrDefaultAsync(t => t.SteamID == SteamID);
             if(result is null)
             {
-                Log.Debug("Try to get U0 but dont have account.");
+                Log.Debug("Try to get U0 but dont have account. You registered account?");
                 return null;
             }
             result = await _db.Table<u0>().FirstOrDefaultAsync(t => t.SteamID == SteamID);
