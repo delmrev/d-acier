@@ -27,7 +27,6 @@ public class ServerConfig
     public string Address { get; set; } = "0.0.0.0";
     public ushort HTTP { get; set; }
     public ushort HTTPS { get; set; }
-    public ushort STUN { get; set; }
     public ushort TCP { get; set; }
 
     public int TCPKeepAliveTime {get; set;}

@@ -4,7 +4,7 @@ public class HexDump
 {
     public static string Dump(ReadOnlySpan<byte> buffer, int bytesPerLine = 16)
     {
-        if (bytesPerLine <= 0) throw new ArgumentOutOfRangeException(nameof(bytesPerLine));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(bytesPerLine);
 
         var sb = new StringBuilder();
 
@@ -26,8 +26,7 @@ public class HexDump
                 sb.Append(' ');
             }
 
-            // ASCII-part
-            sb.Append("|");
+            sb.Append('|');
             for (int j = 0; j < line.Length; j++)
             {
                 byte b = line[j];

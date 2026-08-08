@@ -1,0 +1,10 @@
+{
+    // 0.0.0.0 not allowed
+    // the default IP address, which will be replaced by an Eugnet IP address
+    // Format: IP
+    "Default": "",
+    // The addresses that the server will listen on, as well as the backup addresses used to determine NAT; by default, 
+    // please try to use ports 3478 and 3479 for each IP address; for full functionality, you need 2 IP addresses and 4 ports; 
+    // for the minimum configuration, 1 IP address and 2 ports; Format: IP:Port
+    "Address":[]
+}
