@@ -50,9 +50,9 @@ There's simple quick-start guide to run and play. Get the latest [release](https
 ### Server
 
 > [!IMPORTANT]
-> You need to open 8080, 443, 3478 and 21001 ports by default.
+> You need to open 8080, 443, 3478, 3479 and 21001 ports by default.
 
-1. Configure the server in `config/config.json` file (update IP to serve and ports)
+1. Configure the server in `Configuration/Server.json` and `Configuration/Stun.json` file (update IP to serve and ports)
 
 2. Run the server with `d-acier.exe`
 

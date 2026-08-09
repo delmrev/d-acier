@@ -43,7 +43,7 @@ project "eugnet-patch"
         links { "libMinHook.x64" }
 
     filter "configurations:Release"
-        optimize "Off"
+        optimize "On"
         linkoptions { "/INCREMENTAL:NO" }
 
     filter {}
